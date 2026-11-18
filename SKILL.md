@@ -61,6 +61,11 @@ cd "<repo>" && agy -p "Read <D>/review_brief.md and do exactly what it says." --
   --model gemini-3.8-flash-high --add-dir "<D>" --print-timeout 15m > "<D>/review_gemini.md" 2> "<D>/log_gemini.txt"
 ```
 
+- **Time budget:** measured on a ~550-line page, the Codex worker took about 5 minutes, then kept testing itself. Reviews took 5 to 8 minutes each.
+  - Prefix workers with `timeout 900` and Codex reviews with `timeout 300`. Give agy `--print-timeout 8m`.
+  - Every review brief says "Spend at most ~3 minutes; do not build test harnesses" and names the recently edited lines.
+  - A timed-out worker usually still wrote its files, so check the diff before rerunning.
+  - When the user is waiting on a small task, do it yourself instead.
 - **`agy` headless can't run shell commands:** it auto-denies them, and if it tries, it returns an **empty** result ("no output produced" in the log). Every agy brief, research included, must say: "Do NOT run shell/terminal commands; read files only with your file-reading tools." Never "fix" this with `--dangerously-skip-permissions`.
 - **Not a git repo:** Codex refuses to run. Add `--skip-git-repo-check` only for throwaway folders, because the review steps below need git.
 - **Don't use the `gemini` CLI:** personal Google logins are rejected there ("client is no longer supported"). Use `agy`.
@@ -81,6 +86,7 @@ Repo: <path>. Read these first: <files>.
 ## Rules
 - Touch only: <files/dirs>. No new dependencies unless listed here: <none>.
 - No git commands needed; do not commit.
+- Don't build test harnesses or mock browsers to check your own work; Claude verifies. Finish fast.
 - If the sandbox blocks a package install or network access the task truly needs, STOP and report the command. If you just can't run the tests (common on Windows), finish the code anyway and say so. Ignore blocked side commands like `git status`.
 ## Reply (max 15 lines)
 Files changed, test command + result, anything you were unsure about.
@@ -112,7 +118,7 @@ No praise, no summary, no other text.
 ```
 
 3. **Run both goldfish in parallel** (Codex + Gemini, two background calls, or one call with `&` … `wait`). The model that wrote the code never reviews alone.
-4. **A review counts only if** the CLI exited 0 *and* this attempt wrote fresh output in the format: findings or `NO FINDINGS`. Delete the old `review_*.md` before each run. If it's empty, prose, `COULD NOT READ` or an error, retry once; if that fails too, it's **"not run"**.
+4. **A review counts only if** the CLI exited 0 *and* this attempt wrote fresh output in the format: findings or `NO FINDINGS`. Before each run, delete the old outputs **by name**: `rm -f "<D>/review_codex.md" "<D>/review_gemini.md"`. Never use `review_*.md`, which also deletes `review_brief.md`. If it's empty, prose, `COULD NOT READ` or an error, retry once; if that fails too, it's **"not run"**.
 
 ## Triage and loop
 
