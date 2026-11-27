@@ -1,4 +1,6 @@
+import re
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -110,3 +112,71 @@ def test_worktree_task_state_in_main_repo(repo):
     assert branch.stdout.strip() == "delegate/t1"
     assert (repo / ".delegate/tasks/t1/state.json").is_file()
     assert state.load_task(tree, "t1") == task
+
+
+def test_changes_since_respects_autocrlf(repo):
+    subprocess.run(["git", "config", "core.autocrlf", "true"], cwd=repo, check=True)
+    base = git.head(repo)
+    (repo / "README.md").write_bytes(b"# Test project\r\n")
+    tracked, _ = git._changes_since(repo, base)
+    # A line-ending-only change is not a change under autocrlf=true; listing must agree with git status.
+    assert "README.md" not in tracked
+    assert "README.md" not in git.status_files(repo)
+
+
+def test_lock_guard_releases_msvcrt_lock(tmp_path, monkeypatch):
+    import os
+    if os.name != "nt":
+        import sys
+        import types
+        fake_msvcrt = types.ModuleType("msvcrt")
+        fake_msvcrt.LK_LOCK = 1
+        fake_msvcrt.LK_UNLCK = 2
+        calls = []
+        fake_msvcrt.locking = lambda fd, mode, n: calls.append(mode)
+        monkeypatch.setitem(sys.modules, "msvcrt", fake_msvcrt)
+        monkeypatch.setattr(os, "name", "nt")
+        with state._lock_guard(tmp_path):
+            pass
+        assert calls == [fake_msvcrt.LK_LOCK, fake_msvcrt.LK_UNLCK]
+    else:
+        import msvcrt
+        unlocked = []
+        orig_locking = msvcrt.locking
+        def spy_locking(fd, mode, n):
+            if mode == msvcrt.LK_UNLCK:
+                unlocked.append(mode)
+            return orig_locking(fd, mode, n)
+        monkeypatch.setattr(msvcrt, "locking", spy_locking)
+        with state._lock_guard(tmp_path):
+            pass
+        assert len(unlocked) == 1
+
+
+@pytest.mark.parametrize("task_id", [
+    "CON", "con", "prn", "AUX", "nul", "COM1", "com9", "LPT1", "lpt9",
+    "con.txt", "NUL.tar.gz", "aux.json", "com3.dat",
+    "task.", "foo..", ".", "..",
+])
+def test_windows_reserved_and_dot_task_ids_rejected(repo, task_id):
+    with pytest.raises(git.DelegateError):
+        state.create_task(repo, task_id, "x", ["src/**"], load_config(repo))
+
+
+def test_task_tree_missing_worktree_raises_delegate_error(repo):
+    task = state.create_task(repo, "t1", "x", ["**"], load_config(repo), worktree=True)
+    tree = Path(task.worktree)
+    assert tree.is_dir()
+    import shutil
+    shutil.rmtree(tree)
+    with pytest.raises(git.DelegateError, match=re.escape(f"worktree for task t1 is missing: {task.worktree}")):
+        state.task_tree(repo, task)
+
+
+def test_file_sha_permission_error_returns_unreadable(repo, monkeypatch):
+    file_path = repo / "locked.txt"
+    file_path.write_text("content", encoding="utf-8")
+    def fail_open(*args, **kwargs):
+        raise PermissionError("Access is denied")
+    monkeypatch.setattr(Path, "open", fail_open)
+    assert git.file_sha(repo, "locked.txt") == "<unreadable>"

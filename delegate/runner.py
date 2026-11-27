@@ -51,7 +51,12 @@ def _kill_tree(process: subprocess.Popen) -> None:
             )
         except (OSError, subprocess.CalledProcessError) as exc:
             if process.poll() is None:
-                process.kill()
+                try:
+                    process.kill()
+                    process.wait(timeout=1)
+                except (OSError, subprocess.SubprocessError):
+                    pass
+            if process.poll() is None:
                 raise DelegateError(f"could not terminate process tree {process.pid}: {exc}") from exc
     else:
         try:

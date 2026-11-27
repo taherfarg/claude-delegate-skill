@@ -44,8 +44,11 @@ def _project_files(paths: Iterable[str]) -> set[str]:
     return {path for path in paths if path and not path.startswith(".delegate/")}
 
 
+_CRLF_CONFIG = ("-c", "core.safecrlf=false")  # use the user's autocrlf everywhere so status, listing and hashing agree (forcing it off makes CRLF files look changed on Windows)
+
+
 def status_files(tree: Path) -> list[str]:
-    status = _run(tree, "status", "--porcelain=v1", "-z", "--no-renames", "--untracked-files=all")
+    status = _run(tree, *_CRLF_CONFIG, "status", "--porcelain=v1", "-z", "--no-renames", "--untracked-files=all")
     return sorted(_project_files(entry[3:] for entry in status.split("\0")))
 
 
@@ -60,10 +63,12 @@ def file_sha(tree: Path, rel: str) -> str:
             return hashlib.file_digest(stream, "sha256").hexdigest()
     except (FileNotFoundError, NotADirectoryError):
         return "<deleted>"
+    except PermissionError:
+        return "<unreadable>"
 
 
 def _changes_since(tree: Path, base: str) -> tuple[set[str], set[str]]:
-    tracked = _run(tree, "diff", "--name-only", "--no-renames", "-z", base, "--")
+    tracked = _run(tree, *_CRLF_CONFIG, "diff", "--name-only", "--no-renames", "-z", base, "--")
     untracked = _run(tree, "ls-files", "--others", "--exclude-standard", "-z")
     return _project_files(tracked.split("\0")), _project_files(untracked.split("\0"))
 
@@ -71,8 +76,7 @@ def _changes_since(tree: Path, base: str) -> tuple[set[str], set[str]]:
 def _diff(tree: Path, base: str, files: list[str], untracked: list[str]) -> str:
     if not files:
         return ""
-    config = ("-c", "core.autocrlf=false", "-c", "core.safecrlf=false")
-    args = (*config, "diff", "--no-color", "--no-ext-diff", base, "--", *files)
+    args = (*_CRLF_CONFIG, "diff", "--no-color", "--no-ext-diff", base, "--", *files)
     if not untracked:
         return _run(tree, *args)
 
@@ -82,5 +86,5 @@ def _diff(tree: Path, base: str, files: list[str], untracked: list[str]) -> str:
         scratch_index = Path(directory) / "index"
         if index.exists():
             shutil.copyfile(index, scratch_index)
-        _run(tree, *config, "add", "-N", "--", *untracked, index=scratch_index)
+        _run(tree, *_CRLF_CONFIG, "add", "-N", "--", *untracked, index=scratch_index)
         return _run(tree, *args, index=scratch_index)

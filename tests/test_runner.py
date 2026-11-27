@@ -79,3 +79,29 @@ def test_stdin_and_stdout_paths(tmp_path):
 def test_resolve_missing():
     with pytest.raises(DelegateError, match="definitely-missing-xyz not found on PATH"):
         runner.resolve("definitely-missing-xyz")
+
+
+def test_kill_tree_fallback_kill_succeeds_no_raise(monkeypatch):
+    class FakeProcess:
+        def __init__(self):
+            self.pid = 12345
+            self._alive = True
+
+        def poll(self):
+            return None if self._alive else -9
+
+        def kill(self):
+            self._alive = False
+
+        def wait(self, timeout=None):
+            return -9
+
+    proc = FakeProcess()
+    monkeypatch.setattr(os, "name", "nt")
+    def fail_taskkill(*args, **kwargs):
+        raise subprocess.CalledProcessError(1, ["taskkill"])
+    monkeypatch.setattr(subprocess, "run", fail_taskkill)
+
+    # Should not raise DelegateError
+    runner._kill_tree(proc)
+    assert proc.poll() is not None

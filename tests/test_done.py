@@ -516,3 +516,19 @@ def test_done_blocked_exits_2_and_prints_blockers(repo, monkeypatch, capsys):
 
     out = capsys.readouterr().out
     assert "gate check: missing" in out
+
+
+def test_status_all_tasks_busy_lock(repo, monkeypatch, capsys):
+    (repo / "delegate.toml").write_text("allow_no_gates = true\n", encoding="utf-8")
+    cfg = load_config(repo)
+    state.create_task(repo, "t1", "task 1", ["**"], cfg)
+    state.create_task(repo, "t2", "task 2", ["**"], cfg)
+
+    monkeypatch.chdir(repo)
+    with state.task_lock(repo, "t1"):
+        code = main(["status"])
+        assert code == 0
+
+    out = capsys.readouterr().out
+    assert "t1  busy" in out
+    assert "t2  no-changes  medium" in out

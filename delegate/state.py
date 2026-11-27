@@ -34,14 +34,32 @@ class Task:
     events: list[dict] = field(default_factory=list)
 
 
+_RESERVED_NAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10)),
+}
+
+
 def task_dir(repo: Path, task_id: str) -> Path:
-    if task_id in {".", ".."} or not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", task_id):
+    stem = task_id.split(".")[0].upper()
+    if (
+        task_id in {".", ".."}
+        or task_id.endswith(".")
+        or stem in _RESERVED_NAMES
+        or not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", task_id)
+    ):
         raise DelegateError(f"invalid task id: {task_id!r}")
     return git.main_root(repo) / ".delegate" / "tasks" / task_id
 
 
 def task_tree(repo: Path, task: Task) -> Path:
-    return Path(task.worktree) if task.worktree else git.main_root(repo)
+    if task.worktree:
+        tree = Path(task.worktree)
+        if not tree.is_dir():
+            raise DelegateError(f"worktree for task {task.id} is missing: {task.worktree}")
+        return tree
+    return git.main_root(repo)
 
 
 def load_task(repo: Path, task_id: str) -> Task:
@@ -76,11 +94,19 @@ def _lock_guard(directory: Path) -> Iterator[None]:
 
             guard.seek(0)
             msvcrt.locking(guard.fileno(), msvcrt.LK_LOCK, 1)
+            try:
+                yield
+            finally:
+                guard.seek(0)
+                msvcrt.locking(guard.fileno(), msvcrt.LK_UNLCK, 1)
         else:
             import fcntl
 
             fcntl.flock(guard, fcntl.LOCK_EX)
-        yield
+            try:
+                yield
+            finally:
+                fcntl.flock(guard, fcntl.LOCK_UN)
 
 
 @contextmanager

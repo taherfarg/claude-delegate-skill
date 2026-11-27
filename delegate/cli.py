@@ -107,11 +107,17 @@ def _cmd_status(repo: Path, cfg: Config, args: argparse.Namespace) -> int:
         for item in sorted(tasks_dir.iterdir()):
             if (item / "state.json").is_file():
                 task_id = item.name
-                with state.task_lock(repo, task_id):
-                    task = state.load_task(repo, task_id)
-                    if task.outcome is None:
-                        ev = gates.evaluate(repo, task, cfg)
-                        print(f"{task.id}  {ev.phase}  {ev.risk}")
+                try:
+                    with state.task_lock(repo, task_id):
+                        task = state.load_task(repo, task_id)
+                        if task.outcome is None:
+                            ev = gates.evaluate(repo, task, cfg)
+                            print(f"{task.id}  {ev.phase}  {ev.risk}")
+                except DelegateError as exc:
+                    if "is busy" in str(exc):
+                        print(f"{task_id}  busy")
+                    else:
+                        raise
     return 0
 
 
@@ -133,12 +139,7 @@ def _cmd_done(repo: Path, cfg: Config, args: argparse.Namespace) -> int:
                 print(b)
             return 2
         task.outcome = "done"
-        try:
-            from . import metrics
-
-            metrics.record(task, cfg, "done", ev)
-        except ImportError:
-            pass
+        metrics.record(task, cfg, "done", ev)
         state.save_task(repo, task)
         if task.worktree:
             print(f"git merge delegate/{task.id}")
@@ -152,12 +153,7 @@ def _cmd_abandon(repo: Path, cfg: Config, args: argparse.Namespace) -> int:
         task = _load_task(repo, task_id)
         ev = gates.evaluate(repo, task, cfg)
         task.outcome = "abandoned"
-        try:
-            from . import metrics
-
-            metrics.record(task, cfg, "abandoned", ev)
-        except ImportError:
-            pass
+        metrics.record(task, cfg, "abandoned", ev)
         state.save_task(repo, task)
     return 0
 

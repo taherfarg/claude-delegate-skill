@@ -55,9 +55,43 @@ def test_scan_secrets_misses():
 
 @pytest.mark.parametrize("path", [".env", "config b/.env.local"])
 def test_env_file_is_hit(path):
-    diff = f"diff --git a/{path} b/{path}\nnew file mode 100644\n"
+    diff = (
+        f"diff --git a/{path} b/{path}\n"
+        "new file mode 100644\n"
+        "--- /dev/null\n"
+        f"+++ b/{path}\n"
+        "@@ -0,0 +1 @@\n"
+        "+SECRET_KEY=1234\n"
+    )
     hits = scan_secrets(diff, [])
     assert [(hit.file, hit.kind) for hit in hits] == [(path, "env-file")]
+
+
+def test_deleted_or_empty_env_file_not_hit():
+    deleted_diff = (
+        "diff --git a/.env b/.env\n"
+        "deleted file mode 100644\n"
+        "--- a/.env\n"
+        "+++ /dev/null\n"
+        "@@ -1 +0,0 @@\n"
+        "-SECRET=1\n"
+    )
+    assert scan_secrets(deleted_diff, []) == []
+
+    empty_diff = (
+        "diff --git a/.env.local b/.env.local\n"
+        "new file mode 100644\n"
+    )
+    assert scan_secrets(empty_diff, []) == []
+
+    removed_only = (
+        "--- a/.env\n"
+        "+++ b/.env\n"
+        "@@ -1,2 +1 @@\n"
+        " unchanged\n"
+        "-deleted\n"
+    )
+    assert scan_secrets(removed_only, []) == []
 
 
 def test_allowlist_skips_fixture_path():

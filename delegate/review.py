@@ -220,8 +220,8 @@ def scan_secrets(diff: str, allow: list[str]) -> list[SecretHit]:
         if any(match_glob(path, pattern) for pattern in allow):
             continue
         name = PurePosixPath(path).name
-        if name == ".env" or name.startswith(".env."):
-            record(path, 1, "env-file", name)
+        if (name == ".env" or name.startswith(".env.")) and lines:
+            record(path, lines[0][0], "env-file", name)
         for number, text in lines:
             if executable:
                 additions.append((path, number, text))
