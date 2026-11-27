@@ -67,8 +67,18 @@ def file_sha(tree: Path, rel: str) -> str:
         return "<unreadable>"
 
 
+def _refresh(tree: Path) -> None:
+    # Refresh cached stat info like `git status` does; without it `git diff --name-only`
+    # can disagree with status on files touched within the same second ("racy git").
+    try:
+        _run(tree, *_CRLF_CONFIG, "update-index", "-q", "--refresh")
+    except DelegateError:
+        pass  # non-zero just means some entries still differ, which is expected
+
+
 def _changes_since(tree: Path, base: str) -> tuple[set[str], set[str]]:
-    tracked = _run(tree, *_CRLF_CONFIG, "diff", "--name-only", "--no-renames", "-z", base, "--")
+    _refresh(tree)
+    tracked =_run(tree, *_CRLF_CONFIG, "diff", "--name-only", "--no-renames", "-z", base, "--")
     untracked = _run(tree, "ls-files", "--others", "--exclude-standard", "-z")
     return _project_files(tracked.split("\0")), _project_files(untracked.split("\0"))
 
