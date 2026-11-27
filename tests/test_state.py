@@ -119,9 +119,9 @@ def test_changes_since_respects_autocrlf(repo):
     base = git.head(repo)
     (repo / "README.md").write_bytes(b"# Test project\r\n")
     tracked, _ = git._changes_since(repo, base)
-    # A line-ending-only change is not a change under autocrlf=true; listing must agree with git status.
-    assert "README.md" not in tracked
-    assert "README.md" not in git.status_files(repo)
+    # Whether git counts a line-ending-only edit as a change differs by platform;
+    # what must hold everywhere is that our listing agrees with git status.
+    assert ("README.md" in tracked) == ("README.md" in git.status_files(repo))
 
 
 def test_lock_guard_releases_msvcrt_lock(tmp_path, monkeypatch):
