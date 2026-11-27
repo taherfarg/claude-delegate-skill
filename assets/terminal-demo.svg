@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="415" viewBox="0 0 980 415" role="img" aria-labelledby="t d">
+<title id="t">Terminal: the first real delegate run</title>
+<desc id="d">Real output: verify passes, Codex is unavailable (quota), Gemini finds that accents become hyphens, Claude triages and fixes it test-first, a clean round follows and done passes.</desc>
+<rect width="980" height="415" rx="12" fill="#222620" stroke="#454b40"/>
+<path d="M12 .5 H968 a11.5 11.5 0 0 1 11.5 11.5 V38 H.5 V12 A11.5 11.5 0 0 1 12 .5Z" fill="#2b3029"/>
+<circle cx="24" cy="19" r="5.5" fill="#d9705a"/>
+<circle cx="42" cy="19" r="5.5" fill="#e3c27a"/>
+<circle cx="60" cy="19" r="5.5" fill="#8fbf7a"/>
+<text x="490.0" y="24" font-family="ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace" font-size="12.5" font-weight="400" fill="#b4bcaa" text-anchor="middle">delegate · first real run, 2026-11-27 (output condensed)</text>
+<text x="22" y="64" font-family="ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace" font-size="14"><tspan fill="#f3b28b">❯ </tspan><tspan fill="#e6e8d9">delegate task new slug --title &quot;slugify helper&quot; --files slug.py test_slug.py</tspan></text>
+<text x="22" y="89" font-family="ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace" font-size="14"><tspan fill="#f3b28b">❯ </tspan><tspan fill="#e6e8d9">delegate verify slug</tspan></text>
+<text x="40" y="114" font-family="ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace" font-size="13.5" font-weight="400" fill="#b0d79c" text-anchor="start">PASS test</text>
+<text x="22" y="139" font-family="ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace" font-size="14"><tspan fill="#f3b28b">❯ </tspan><tspan fill="#e6e8d9">delegate review slug --goal &quot;lowercase ASCII URL slug, with a test&quot;</tspan></text>
+<text x="40" y="164" font-family="ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace" font-size="13.5" font-weight="400" fill="#e3c27a" text-anchor="start">codex: unavailable</text>
+<text x="40" y="189" font-family="ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace" font-size="13.5" font-weight="400" fill="#e6e8d9" text-anchor="start">gemini: ran</text>
+<text x="40" y="214" font-family="ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace" font-size="13.5" font-weight="400" fill="#e3c27a" text-anchor="start">gemini-3-1 🟡 slug.py:5 — accents become hyphens, not ASCII — &quot;café&quot; → &quot;caf&quot;</text>
+<text x="22" y="239" font-family="ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace" font-size="14"><tspan fill="#f3b28b">❯ </tspan><tspan fill="#e6e8d9">delegate triage slug gemini-3-1 fix &quot;normalize accents to ASCII&quot;</tspan></text>
+<text x="40" y="264" font-family="ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace" font-size="13.5" font-weight="400" fill="#b4bcaa" text-anchor="start"># fix test-first → verify → review again (round is clean)</text>
+<text x="22" y="289" font-family="ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace" font-size="14"><tspan fill="#f3b28b">❯ </tspan><tspan fill="#e6e8d9">delegate status slug</tspan></text>
+<text x="40" y="314" font-family="ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace" font-size="13.5" font-weight="400" fill="#e6e8d9" text-anchor="start">phase: ready · risk: medium · next: delegate done slug</text>
+<text x="22" y="339" font-family="ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace" font-size="14"><tspan fill="#f3b28b">❯ </tspan><tspan fill="#e6e8d9">delegate done slug</tspan></text>
+<text x="40" y="364" font-family="ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace" font-size="13.5" font-weight="400" fill="#b4bcaa" text-anchor="start"># exit 0: task marked done, metrics recorded</text>
+</svg>

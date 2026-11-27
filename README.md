@@ -1,179 +1,204 @@
-# delegate: a multi-agent orchestration and enforcement engine
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+    <img alt="delegate: one elephant, two goldfish. Claude orchestrates; Codex and Gemini build and review on the subscriptions you already pay for." src="assets/banner-light.svg" width="100%">
+  </picture>
+</p>
 
-[![CI](https://github.com/taherfarg/claude-delegate-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/taherfarg/claude-delegate-skill/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Python >= 3.11](https://img.shields.io/badge/python->=3.11-blue.svg)](https://python.org)
+<p align="center">
+  <a href="https://github.com/taherfarg/claude-delegate-skill/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/taherfarg/claude-delegate-skill/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/taherfarg/claude-delegate-skill/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/taherfarg/claude-delegate-skill?color=a53b20"></a>
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-3776ab">
+  <img alt="Runtime dependencies: 0" src="https://img.shields.io/badge/runtime%20deps-0-41624c">
+  <img alt="Tests: 129" src="https://img.shields.io/badge/tests-129-41624c">
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-595c52"></a>
+</p>
 
-Claude Code acts as the **elephant**: it holds context, plans work, writes briefs, and makes final architectural calls. It delegates heavy lifting to the AI subscriptions you already pay for:
+<p align="center">
+  <a href="https://taherfarg.github.io/claude-delegate-skill/"><b>Website</b></a> ·
+  <a href="#quickstart">Quickstart</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#proof-it-works">Proof it works</a> ·
+  <a href="CHANGELOG.md">Changelog</a>
+</p>
 
-- **ChatGPT, via the [Codex CLI](https://github.com/openai/codex):** writes features, tests, and fixes in a sandbox.
-- **Gemini, via the Antigravity CLI (`agy`):** codebase research and independent reviews.
+**delegate** turns Claude Code into the lead of a three-model team, using the subscriptions you already pay for and no API keys.
+- **Claude (the elephant)** keeps the context, plans, writes briefs and makes the final calls.
+- **ChatGPT, through the [Codex CLI](https://github.com/openai/codex),** writes code in a sandbox.
+- **Gemini, through the Antigravity CLI (`agy`),** researches and reviews.
 
-Both serve as **goldfish reviewers**: fresh-context second opinions that never see conversation history, catching blind spots the elephant cannot see.
+Codex and Gemini also act as **goldfish reviewers**: fresh-context second opinions that never see the chat, so they catch what the elephant stopped seeing.
 
-In v1, delegation was guided by prompt instructions alone; real-world runs showed that mechanical steps (diff scoping, timeouts, process cleanup, gate enforcement) can be skipped or mishandled. **delegate v2** introduces a standard-library Python CLI engine (`delegate`) that Claude calls. The engine enforces timeouts, kills hanging process trees, scans for secrets, freezes diffs, and refuses `done` unless evidence-based gates pass on the current code.
+What makes it more than a prompt is the **`delegate` engine**: a small Python CLI, standard library only, that Claude calls. It runs the workers and reviewers with timeouts and scans for secrets. It also **refuses to mark a task done** until every required check has passed *on the current code*.
 
-> [!NOTE]
-> **Built by v1:** v2 was built dogfooding v1. Codex implemented Tasks 1–3 and 5; Gemini implemented Tasks 4 and 6–10 after Codex reached its usage limit; Claude orchestrated, reviewed, merged, and fixed integration details.
+<p align="center">
+  <img alt="Terminal: the first real run. Verify passes, Codex is out of quota, Gemini finds that accents become hyphens, Claude fixes it test-first, a clean round follows and done passes." src="assets/terminal-demo.svg" width="92%">
+</p>
 
----
+## Why
 
-## Architecture Flow
+| You want | delegate gives you |
+|---|---|
+| **To save Claude usage** | Codex does the heavy coding and Claude only reads briefs, diffs and findings. |
+| **A real second opinion** | Two *different* models review every change with no chat history, in parallel. |
+| **Speed** | Independent tasks run at the same time, each in its own git worktree. |
+| **To trust "done"** | Evidence is tied to a hash of the current diff. Edit one line and every check is stale again. |
 
-```mermaid
-flowchart TD
-    Claude["Claude (Elephant Orchestrator)"] -->|1. delegate task new / work| Engine["delegate CLI Engine"]
-    Engine -->|Runs worker in sandbox / worktree| CodexWorker["Codex Worker"]
-    Engine -->|Runs verify| Gates["Project Gates (test, lint)"]
-    Engine -->|Runs review in parallel| Reviewers["Codex + Gemini Reviewers"]
-    Reviewers -->|Findings 🔴 🟡 🟢| Triage["Triage (fix | contest)"]
-    Triage --> Engine
-    Gates --> Engine
-    Engine -->|Evaluates risk & diff_hash| DoneCheck{"Risk-Tiered Gates Hold?"}
-    DoneCheck -->|High risk / override| HumanApprove["Human Approval (delegate approve)"]
-    HumanApprove --> DoneCheck
-    DoneCheck -->|Passed| Done["Task Done (delegate done)"]
+## How it works
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/architecture-dark.svg">
+    <img alt="Claude calls the delegate engine; the engine runs the Codex worker, your project gates and the two goldfish reviewers; findings go back to Claude for triage; high-risk changes need your approval." src="assets/architecture-light.svg" width="100%">
+  </picture>
+</p>
+
+```
+delegate task new → work → verify → review → triage → (fix → verify → review) → done
 ```
 
----
+The engine decides what `done` requires from the files a task touched:
 
-## Risk-Tiered Gates
-
-Task status and completion are derived from evidence on the current diff hash (`diff_hash`). Changing code invalidates stale checks automatically.
-
-| Risk Level | Trigger Condition | Requirements on Current `diff_hash` to Pass `done` |
+| Risk | When | `done` requires, on the current `diff_hash` |
 |---|---|---|
-| **Low** | Every changed file matches `risk.low` (defaults: `*.md`, `*.txt`, `*.css`, images, `docs/**`) | All configured project gates pass (`PASS`). |
-| **Medium** | Default tier when neither low nor high. | All gates pass + clean review round (if Codex wrote code, Gemini required; otherwise either reviewer) + all 🔴/🟡 triaged. |
-| **High** | Any changed file matches `risk.high` (defaults: auth, migrations, SQL, billing, CI, manifests, configs, `delegate.toml`) | All gates pass + **both** Codex and Gemini ran clean + all 🔴/🟡 triaged + human approval via `delegate approve`. |
+| 🟢 **Low** | only docs, text, CSS or images changed | every project gate passes |
+| 🟡 **Medium** | everything else | gates pass + a clean review from the model that **didn't** write the code + every 🔴/🟡 contested |
+| 🔴 **High** | auth, migrations, SQL, billing, CI, dependency manifests, test/lint config, `delegate.toml` | gates pass + **both** reviewers clean + **your** `delegate approve` in a real terminal |
 
----
+A check that is missing, stale, failed or timed out **never** counts as passed. Claude can't approve on your behalf: `approve` requires an interactive console and refuses piped input and the Windows `NUL` device.
 
-## Command Reference
+## Quickstart
 
-| Command | Description |
-|---|---|
-| `delegate doctor` | Pre-flight checks: verifies `codex login status`, `agy models`, git, and Python version. |
-| `delegate init` | Detects project stack and generates `delegate.toml`; excludes `.delegate/` from git. |
-| `delegate task new <id> --title <T> --files <G...> [--worktree]` | Creates task baseline, dirty-file snapshot, and file scope. Optional git worktree. |
-| `delegate scope <id> add <globs...>` | Expands allowed file scope for a task. |
-| `delegate work <id> --brief <file>` | Runs worker in sandbox with process-tree timeout; prints capped summary & diff stat. |
-| `delegate verify <id>` | Runs configured project gates sequentially in the task tree. |
-| `delegate review <id> --goal <G> [--criteria-file <F>]` | Scans secrets, freezes diff, and runs Codex + Gemini in parallel goldfish review. |
-| `delegate triage <id> <finding_id> {fix,contest} [<reason>] [--same-as <old>]` | Records `fix` or `contest` for a finding. Each round's findings get new ids; link a repeat with `--same-as`. |
-| `delegate status [<id>]` | Shows derived task phase, risk, changed files, blockers, and next command. |
-| `delegate approve <id>` | Human-only interactive approval for high-risk changes or reviewer overrides. |
-| `delegate done <id>` | Enforces completion gates, records metrics, and prints worktree merge steps. |
-| `delegate abandon <id>` | Marks task abandoned and records metrics. |
-| `delegate report` | Displays aggregated performance metrics from `~/.delegate/metrics.jsonl`. |
+**1. Requirements:**
+- [Claude Code](https://claude.com/claude-code)
+- the [Codex CLI](https://github.com/openai/codex), logged in with ChatGPT (`codex login`)
+- the Antigravity CLI (`agy`), logged in with Google
+- git
+- Python 3.11+
 
----
+**2. Install.** Clone the skill, then install the engine from that same folder, so one `git pull` updates both:
 
-## Installation
-
-### 1. Install Skill for Claude Code
-Clone the repository into your Claude Code skills directory:
-
-**macOS / Linux / Git Bash:**
 ```bash
 git clone https://github.com/taherfarg/claude-delegate-skill ~/.claude/skills/delegate
-```
-
-**PowerShell:**
-```powershell
-git clone https://github.com/taherfarg/claude-delegate-skill "$env:USERPROFILE\.claude\skills\delegate"
-```
-
-### 2. Install the `delegate` CLI
-Requires Python >= 3.11 (standard library only at runtime). Install it from the skill folder you just cloned, so a single `git pull` there updates both the skill and the engine:
-
-```bash
 pip install --user -e ~/.claude/skills/delegate
-```
-
-PowerShell: `pip install --user -e "$env:USERPROFILE\.claude\skills\delegate"`. If `delegate` isn't found afterwards, add Python's user scripts folder to PATH (`python -m site --user-base`, then its `Scripts`/`bin`), or run `python -m delegate`.
-
-Verify your environment:
-```bash
 delegate doctor
 ```
 
----
+<details><summary>PowerShell</summary>
 
-## Configuration (`delegate.toml`)
+```powershell
+git clone https://github.com/taherfarg/claude-delegate-skill "$env:USERPROFILE\.claude\skills\delegate"
+pip install --user -e "$env:USERPROFILE\.claude\skills\delegate"
+python -m delegate doctor
+```
+If `delegate` isn't on PATH, add Python's user `Scripts` folder to it, or use `python -m delegate`.
+</details>
 
-Create a `delegate.toml` in your repository root, or run `delegate init`:
+**3. Use it.** Open a project in Claude Code and ask as usual ("build the CSV export"), or be explicit ("use codex for this", "get a second opinion"). Claude drives the commands; you only step in for `delegate approve`.
+
+<details><summary>Command reference</summary>
+
+| Command | What it does |
+|---|---|
+| `delegate doctor` | checks the Codex login, the `agy` model, git and Python |
+| `delegate init` | writes `delegate.toml` with gates detected from your stack |
+| `delegate task new <id> --title T --files G… [--worktree]` | records the baseline, your uncommitted edits, and the task's scope |
+| `delegate scope <id> add G…` | widens the scope |
+| `delegate work <id> --brief FILE` | runs the Codex worker (sandboxed, timed) |
+| `delegate verify <id>` | runs your gates one by one, without stopping at the first failure |
+| `delegate review <id> --goal G` | scans for secrets, freezes the diff, runs Codex + Gemini in parallel |
+| `delegate triage <id> <finding> fix\|contest "why"` | records a decision; `--same-as` links a repeated finding |
+| `delegate status [<id>]` | phase, risk, blockers and the exact next command (this is how you resume) |
+| `delegate approve <id>` | **human only**, in a real terminal |
+| `delegate done <id>` / `abandon <id>` | finishes the task and records metrics |
+| `delegate report` | metrics across all your projects (counts only, never code) |
+</details>
+
+<details><summary><code>delegate.toml</code> example</summary>
 
 ```toml
-# delegate.toml
-
-# Project identifier (defaults to directory name)
-project = "my-project"
-
-# Model for Gemini reviews via agy (top-level key)
 gemini_model = "gemini-3.8-flash-high"
-
-# Allow completion if no gates are defined (default: false)
-allow_no_gates = false
 
 [gates]
 lint = "npm run lint"
 typecheck = "npm run typecheck"
-test = "pytest -q"
+test = "npm test"
 
-[risk]
-# Additional globs extending default risk classifications
-low = ["static/**"]
-high = ["src/billing/**", "src/auth/**"]
+[risk]                 # extends the defaults; defaults can't be removed
+high = ["src/billing/**"]
 
 [secrets]
-# Globs permitted to contain credential-like patterns (e.g. test fixtures)
 allow = ["tests/fixtures/**"]
 
 [worktree]
-# Setup command run once upon worktree creation
 setup = "npm ci"
 
-[timeouts]
-worker = 900          # Codex worker timeout (seconds)
-codex_review = 300    # Codex review timeout (seconds)
-agy_review = 480      # Gemini review timeout (seconds)
-gate = 600            # Gate timeout (seconds)
+[timeouts]             # seconds
+worker = 900
+codex_review = 300
+agy_review = 480
+gate = 600
 ```
+</details>
 
----
+## Proof it works
 
-## Metrics
+v2 was **built by v1**:
+- **Codex** wrote Tasks 1–3 and 5, until ChatGPT's usage limit hit mid-build.
+- **Gemini** (`agy --mode accept-edits`) took over Tasks 4 and 6–10.
+- **Claude** wrote the briefs, ran every test, merged, and did an independent review of Gemini's code.
 
-`delegate report` summarizes every finished task across your projects (counts only, no code or finding text). The first real end-to-end run, on 2026-11-27, was a small `slugify` task. Codex was out of quota that day, so it shows the "unavailable" path too:
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/chart-tests-dark.svg">
+  <img alt="Test suite growth: 5 tests after Task 1, 34 after Tasks 2+5, 40, 50, 59, 71, 79, 96, 120 after the review fixes, 126 after Claude's review, 129 after the real-CLI fixes." src="assets/chart-tests-light.svg" width="100%">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/chart-bugs-dark.svg">
+  <img alt="27 bugs caught before v2 shipped: 8 by Claude's test runs between tasks, 8 by the Gemini goldfish review, 5 by Claude's independent review, 5 by the real-CLI end-to-end run, 1 by CI on Linux and macOS." src="assets/chart-bugs-light.svg" width="100%">
+</picture>
+
+Each layer caught bugs the one before it missed. The real-CLI run alone found 5 problems that 120+ unit tests with fake CLIs couldn't:
+- `agy` can't read git-excluded paths
+- it resolves relative paths against the wrong folder
+- it auto-loads its own skills
+- Windows pipes are cp1252, which crashed on the finding icons
+- Windows reports `NUL` as a terminal
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/ci-matrix-dark.svg">
+    <img alt="CI matrix: Windows, Ubuntu and macOS on Python 3.11, 3.12 and 3.13, all nine jobs pass." src="assets/ci-matrix-light.svg" width="62%">
+  </picture>
+</p>
+
+`delegate report` after the first real task (Codex was out of quota that day, so this also shows the `unavailable` path):
 
 ```
 tasks by outcome: done: 1
-mean rounds: 4.0
 findings per reviewer by severity:
-  codex: blocker: 0, major: 0, nit: 0 (total: 0)
   gemini: blocker: 0, major: 1, nit: 1 (total: 2)
 not_run/unavailable per reviewer:
   codex: not_run: 0, unavailable: 4 (ran: 0)
   gemini: not_run: 2, unavailable: 0 (ran: 2)
 ```
 
-Gemini's 🟡 was real: `slugify("café")` gave `caf`. It was fixed test-first. The fix made the earlier review stale, and a fresh round came back clean before `done` passed. The two `not_run` rounds came from real `agy` integration problems: git-excluded paths, relative paths and agy's own skills folder. Fixing them made Gemini review successfully, and those failed rounds don't count toward the 3-round cap.
+The charts come from real numbers in [`scripts/make_visuals.py`](scripts/make_visuals.py) (`python scripts/make_visuals.py` rebuilds them).
 
-### How v2 itself was built
+## Project site
 
-| | |
-|---|---|
-| Codex (ChatGPT) | Tasks 1–3, 5, then hit its usage limit |
-| Gemini (`agy --mode accept-edits`) | Tasks 4, 6–10 and the first review-fix pass |
-| Claude | briefs, test runs, merges, an independent review of Gemini's code (5 real issues fixed test-first), real-CLI debugging |
-| Result | 129 tests, CI green on Windows, Linux and macOS × Python 3.11–3.13 |
+<a href="https://taherfarg.github.io/claude-delegate-skill/"><img alt="The delegate project website" src="assets/site.png" width="100%"></a>
 
----
+## Docs
+
+- [`SKILL.md`](SKILL.md): what Claude follows (sequence, rules, safety)
+- [`docs/manual.md`](docs/manual.md): manual recipes when the engine isn't installed
+- [Design spec](docs/superpowers/specs/2026-11-27-delegate-v2-design.md) and [implementation plan](docs/superpowers/plans/2026-11-27-delegate-v2-engine.md)
+- [CONTRIBUTING](CONTRIBUTING.md) · [SECURITY](SECURITY.md) · [CHANGELOG](CHANGELOG.md)
 
 ## Credits
 
-Inspired by the Elephant + Goldfish Model ([google/elephant-goldfish-model](https://github.com/google/elephant-goldfish-model)).
+The elephant + goldfish idea comes from [google/elephant-goldfish-model](https://github.com/google/elephant-goldfish-model).
 
 ## License
 

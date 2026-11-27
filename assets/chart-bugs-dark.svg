@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="300" viewBox="0 0 880 300" role="img" aria-labelledby="t d">
+<title id="t">Bugs caught before delegate v2 shipped</title>
+<desc id="d">Claude&#x27;s test runs between tasks: 8; Gemini goldfish review: 8; Claude&#x27;s independent review: 5; Real-CLI end-to-end run: 5; CI on Linux + macOS: 1. Total 27.</desc>
+<rect x="0.5" y="0.5" width="879" height="299" rx="12" fill="#1a1a19" stroke="#33332f"/>
+<text x="28" y="38" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" font-weight="650" fill="#f0efec" text-anchor="start">27 bugs caught before v2 shipped, by where they were caught</text>
+<text x="28" y="60" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="12.5" font-weight="400" fill="#c3c2b7" text-anchor="start">All fixed before release. Most were caught by a check other than the code&#x27;s author.</text>
+<text x="274" y="105.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#f0efec" text-anchor="end">Claude&#x27;s test runs between tasks</text>
+<path d="M290,92 H806.0 Q810.0,92 810.0,96 V106 Q810.0,110 806.0,110 H290 Z" fill="#3987e5"><title>Claude&#x27;s test runs between tasks: 8</title></path>
+<text x="818.0" y="105.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="650" fill="#f0efec" text-anchor="start">8</text>
+<text x="274" y="145.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#f0efec" text-anchor="end">Gemini goldfish review</text>
+<path d="M290,132 H806.0 Q810.0,132 810.0,136 V146 Q810.0,150 806.0,150 H290 Z" fill="#3987e5"><title>Gemini goldfish review: 8</title></path>
+<text x="818.0" y="145.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="650" fill="#f0efec" text-anchor="start">8</text>
+<text x="274" y="185.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#f0efec" text-anchor="end">Claude&#x27;s independent review</text>
+<path d="M290,172 H611.0 Q615.0,172 615.0,176 V186 Q615.0,190 611.0,190 H290 Z" fill="#3987e5"><title>Claude&#x27;s independent review: 5</title></path>
+<text x="623.0" y="185.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="650" fill="#f0efec" text-anchor="start">5</text>
+<text x="274" y="225.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#f0efec" text-anchor="end">Real-CLI end-to-end run</text>
+<path d="M290,212 H611.0 Q615.0,212 615.0,216 V226 Q615.0,230 611.0,230 H290 Z" fill="#3987e5"><title>Real-CLI end-to-end run: 5</title></path>
+<text x="623.0" y="225.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="650" fill="#f0efec" text-anchor="start">5</text>
+<text x="274" y="265.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#f0efec" text-anchor="end">CI on Linux + macOS</text>
+<path d="M290,252 H351.0 Q355.0,252 355.0,256 V266 Q355.0,270 351.0,270 H290 Z" fill="#3987e5"><title>CI on Linux + macOS: 1</title></path>
+<text x="363.0" y="265.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="650" fill="#f0efec" text-anchor="start">1</text>
+</svg>
