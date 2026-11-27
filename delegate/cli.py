@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 from typing import NoReturn
 
-from . import __version__, gates, git, review, runner, state
+from . import __version__, gates, git, metrics, review, runner, setup, state
 from .config import Config, ConfigError, load_config
 from .git import DelegateError
 from .review import ReviewRefusal
@@ -199,6 +199,34 @@ def _cmd_triage(repo: Path, cfg: Config, args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_doctor(args: argparse.Namespace) -> int:
+    try:
+        repo = git.main_root(Path.cwd())
+        cfg = load_config(repo)
+        checks = setup.doctor(cfg=cfg)
+    except Exception:
+        checks = setup.doctor()
+    all_passed = True
+    for name, ok, detail in checks:
+        status = "PASS" if ok else "FAIL"
+        print(f"{status} {name} {detail}")
+        if not ok:
+            all_passed = False
+    return 0 if all_passed else 2
+
+
+def _cmd_init(repo: Path, cfg: Config, args: argparse.Namespace) -> int:
+    target = setup.init(repo)
+    print(f"initialized {target.name}")
+    return 0
+
+
+def _cmd_report(args: argparse.Namespace) -> int:
+    path = metrics.home() / "metrics.jsonl"
+    print(metrics.report(path))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _Parser(prog="delegate")
     parser.add_argument("--version", action="version", version=__version__)
@@ -240,10 +268,22 @@ def main(argv: list[str] | None = None) -> int:
     triage_parser.add_argument("reason", nargs="?", default="")
     triage_parser.add_argument("--same-as", default=None)
 
+    doctor_parser = subparsers.add_parser("doctor")
+
+    init_parser = subparsers.add_parser("init")
+
+    report_parser = subparsers.add_parser("report")
+
     try:
         args = parser.parse_args(argv)
+        if args.command == "doctor":
+            return _cmd_doctor(args)
+        if args.command == "report":
+            return _cmd_report(args)
         repo = git.main_root(Path.cwd())
         cfg = load_config(repo)
+        if args.command == "init":
+            return _cmd_init(repo, cfg, args)
         if args.command == "task":
             if args.task_command == "new":
                 return _cmd_task_new(repo, cfg, args)
