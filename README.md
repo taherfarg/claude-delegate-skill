@@ -60,7 +60,7 @@ Task status and completion are derived from evidence on the current diff hash (`
 | `delegate work <id> --brief <file>` | Runs worker in sandbox with process-tree timeout; prints capped summary & diff stat. |
 | `delegate verify <id>` | Runs configured project gates sequentially in the task tree. |
 | `delegate review <id> --goal <G> [--criteria-file <F>]` | Scans secrets, freezes diff, and runs Codex + Gemini in parallel goldfish review. |
-| `delegate triage <id> <finding_id> {fix,contest} [<reason>] [--same-as <old>]` | Triages findings. Contested findings remain settled unless touched code changes. |
+| `delegate triage <id> <finding_id> {fix,contest} [<reason>] [--same-as <old>]` | Records `fix` or `contest` for a finding. Each round's findings get new ids; link a repeat with `--same-as`. |
 | `delegate status [<id>]` | Shows derived task phase, risk, changed files, blockers, and next command. |
 | `delegate approve <id>` | Human-only interactive approval for high-risk changes or reviewer overrides. |
 | `delegate done <id>` | Enforces completion gates, records metrics, and prints worktree merge steps. |
