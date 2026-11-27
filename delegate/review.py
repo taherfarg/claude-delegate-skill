@@ -378,9 +378,15 @@ def run_review(
         raise DelegateError(f"commit or stash your edits to {dirty[0]} first")
 
     # 3. 3 rounds already exist → exit 2 `review cap reached (3): ask the human — delegate approve <id> or delegate abandon <id>`
-    if len(task.reviews) >= 3:
+    # Only rounds where at least one reviewer actually ran count toward the cap, so a
+    # quota outage can't use it up without a single real review.
+    real_rounds = sum(
+        1 for r in task.reviews
+        if any(v.get("status") == "ran" for v in r.get("reviewers", {}).values())
+    )
+    if real_rounds >= 3:
         raise ReviewRefusal(
-            f"review cap reached ({len(task.reviews)}): ask the human — delegate approve {task.id} or delegate abandon {task.id}",
+            f"review cap reached ({real_rounds}):ask the human — delegate approve {task.id} or delegate abandon {task.id}",
             exit_code=2,
         )
 

@@ -118,9 +118,9 @@ def test_round_cap(repo, fakes, monkeypatch, capsys):
     (repo / "src/a.py").write_text("x = 1\n", encoding="utf-8")
 
     task.reviews = [
-        {"round": 1, "diff_hash": "h1"},
-        {"round": 2, "diff_hash": "h2"},
-        {"round": 3, "diff_hash": "h3"},
+        {"round": 1, "diff_hash": "h1", "reviewers": {"codex": {"status": "ran", "findings": []}}},
+        {"round": 2, "diff_hash": "h2", "reviewers": {"codex": {"status": "ran", "findings": []}}},
+        {"round": 3, "diff_hash": "h3", "reviewers": {"codex": {"status": "ran", "findings": []}}},
     ]
     state.save_task(repo, task)
 

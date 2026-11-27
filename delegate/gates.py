@@ -114,12 +114,14 @@ def evaluate(repo: Path, task: Task, cfg: Config) -> Evaluation:
     has_valid_approval = bool(task.approval and task.approval.get("diff_hash") == current_hash)
     latest_round = task.reviews[-1] if task.reviews else None
 
-    if risk in ("medium", "high") and not has_valid_approval:
+    # A human approval can override a reviewer that didn't run or open findings (B6/B7),
+    # but never replace the review itself: some round must exist at the current hash.
+    if risk in ("medium", "high"):
         if not task.reviews:
             blockers.append("review missing")
         elif latest_round.get("diff_hash") != current_hash:
             blockers.append("review stale")
-        else:
+        elif not has_valid_approval:
             if risk == "high":
                 required = ["codex", "gemini"]
             elif "codex" in task.contributors:
@@ -158,7 +160,7 @@ def evaluate(repo: Path, task: Task, cfg: Config) -> Evaluation:
         phase = "no-changes"
     elif any(b.startswith("gate ") for b in blockers) or "no gates configured (add [gates] to delegate.toml)" in blockers:
         phase = "needs-verify"
-    elif risk in ("medium", "high") and not has_valid_approval and (
+    elif risk in ("medium", "high") and (
         "review missing" in blockers
         or "review stale" in blockers
         or any(b.startswith("reviewer ") for b in blockers)
@@ -193,6 +195,11 @@ def evaluate(repo: Path, task: Task, cfg: Config) -> Evaluation:
     )
 
 
+def latest_round_at(task: Task, diff_hash: str) -> dict | None:
+    latest = task.reviews[-1] if task.reviews else None
+    return latest if latest and latest.get("diff_hash") == diff_hash else None
+
+
 def approve(
     repo: Path,
     task: Task,
@@ -209,6 +216,12 @@ def approve(
     risk = compute_risk(changed, cfg)
 
     print(f"risk: {risk}")
+    rule_files = [f for f in changed if f == "delegate.toml" or f.endswith("/delegate.toml")]
+    if rule_files:
+        print("WARNING: this task changes delegate.toml, so the gate and risk rules shown here "
+              "come from the edited file. Check that diff before approving.")
+    if not latest_round_at(task, current_hash):
+        print("WARNING: no review round has run on the current code.")
     if changed:
         print("changed files:")
         for f in changed:
