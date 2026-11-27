@@ -145,11 +145,29 @@ gate = 600            # Gate timeout (seconds)
 
 ## Metrics
 
-Aggregated metrics from `delegate report` will be recorded here from real task executions across projects:
+`delegate report` summarizes every finished task across your projects (counts only, no code or finding text). The first real end-to-end run, on 2026-11-27, was a small `slugify` task. Codex was out of quota that day, so it shows the "unavailable" path too:
 
 ```
-(Metrics placeholder: run `delegate report` after your first tasks to view execution time, review rounds, and finding distribution.)
+tasks by outcome: done: 1
+mean rounds: 4.0
+findings per reviewer by severity:
+  codex: blocker: 0, major: 0, nit: 0 (total: 0)
+  gemini: blocker: 0, major: 1, nit: 1 (total: 2)
+not_run/unavailable per reviewer:
+  codex: not_run: 0, unavailable: 4 (ran: 0)
+  gemini: not_run: 2, unavailable: 0 (ran: 2)
 ```
+
+Gemini's 🟡 was real: `slugify("café")` gave `caf`. It was fixed test-first. The fix made the earlier review stale, and a fresh round came back clean before `done` passed. The two `not_run` rounds came from real `agy` integration problems: git-excluded paths, relative paths and agy's own skills folder. Fixing them made Gemini review successfully, and those failed rounds don't count toward the 3-round cap.
+
+### How v2 itself was built
+
+| | |
+|---|---|
+| Codex (ChatGPT) | Tasks 1–3, 5, then hit its usage limit |
+| Gemini (`agy --mode accept-edits`) | Tasks 4, 6–10 and the first review-fix pass |
+| Claude | briefs, test runs, merges, an independent review of Gemini's code (5 real issues fixed test-first), real-CLI debugging |
+| Result | 129 tests, CI green on Windows, Linux and macOS × Python 3.11–3.13 |
 
 ---
 
