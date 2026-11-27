@@ -112,7 +112,7 @@ def test_brief_has_no_history_and_rules():
     assert "Report the path" in brief
     assert tree.resolve().as_posix() in brief
     assert patch.resolve().as_posix() in brief
-    assert "Recently changed" in brief and "src/a.py:2-4" in brief
+    assert "Changed files" in brief and "/src/a.py (lines 2-4" in brief
     assert "Do NOT run shell/terminal commands (they are denied); read files only with your file-reading tools." in brief
     assert "Spend at most ~5 minutes; do not build test harnesses." in brief
     assert "<🔴|🟡|🟢> <file>:<line> — <problem> — <why>" in brief

@@ -124,7 +124,7 @@ def test_medium_codex_written_requires_gemini(repo):
     assert ev.risk == "medium"
     assert "reviewer gemini: missing" in ev.blockers
     assert ev.phase == "needs-review"
-    assert ev.next_cmd == "delegate review t1"
+    assert ev.next_cmd.startswith("delegate review t1 --goal")
 
 
 def test_medium_claude_written_either_reviewer(repo):
@@ -191,7 +191,7 @@ def test_open_major_blocks_until_contested(repo):
     ev = gates.evaluate(repo, task, cfg)
     assert "finding codex-1-1 open" in ev.blockers
     assert ev.phase == "needs-triage"
-    assert ev.next_cmd == "delegate triage t1"
+    assert ev.next_cmd.startswith("delegate triage t1 <finding-id>")
 
     # Triaged fix -> still blocked until new round
     task.triage["codex-1-1"] = {
@@ -378,7 +378,7 @@ def test_status_next_cmd(repo, monkeypatch, capsys):
     state.save_task(repo, task)
     ev = gates.evaluate(repo, task, cfg)
     assert ev.phase == "needs-review"
-    assert ev.next_cmd == "delegate review t1"
+    assert ev.next_cmd.startswith("delegate review t1 --goal")
     main(["status", "t1"])
     out = capsys.readouterr().out
     assert "delegate review t1" in out
@@ -408,7 +408,7 @@ def test_status_next_cmd(repo, monkeypatch, capsys):
     state.save_task(repo, task)
     ev = gates.evaluate(repo, task, cfg)
     assert ev.phase == "needs-triage"
-    assert ev.next_cmd == "delegate triage t1"
+    assert ev.next_cmd.startswith("delegate triage t1 <finding-id>")
     main(["status", "t1"])
     out = capsys.readouterr().out
     assert "delegate triage t1" in out
@@ -532,3 +532,24 @@ def test_status_all_tasks_busy_lock(repo, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "t1  busy" in out
     assert "t2  no-changes  medium" in out
+
+
+def test_null_stdin_is_not_interactive():
+    """Windows reports NUL as a tty; approve must still refuse when stdin is the null device."""
+    import subprocess
+    import sys
+    code = "from delegate.gates import stdin_is_interactive; print(stdin_is_interactive())"
+    proc = subprocess.run([sys.executable, "-c", code], stdin=subprocess.DEVNULL,
+                          capture_output=True, text=True)
+    assert proc.stdout.strip() == "False", proc.stderr
+
+
+def test_approve_without_input_is_a_clean_refusal(repo):
+    cfg = load_config(repo)
+    task = state.create_task(repo, "t1", "task", ["**"], cfg)
+
+    def no_input(_):
+        raise EOFError
+
+    with pytest.raises(DelegateError, match="no answer"):
+        gates.approve(repo, task, cfg, isatty=lambda: True, ask=no_input)

@@ -254,7 +254,15 @@ def _cmd_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def _utf8_stdio() -> None:
+    # Windows pipes default to cp1252, which can't encode the 🔴/🟡/🟢 finding icons.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
+
 def main(argv: list[str] | None = None) -> int:
+    _utf8_stdio()
     parser = _Parser(prog="delegate")
     parser.add_argument("--version", action="version", version=__version__)
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND", required=True)

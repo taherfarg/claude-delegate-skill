@@ -3,6 +3,7 @@ import json
 import re
 import shutil
 import subprocess
+import tempfile
 import warnings
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass
@@ -249,19 +250,22 @@ def render_brief(
     goal: str, criteria: str, diff_path: Path, tree: Path,
     changed_lines: dict[str, list[int]], minutes: int,
 ) -> str:
+    root = tree.resolve().as_posix()
+    # Full paths: reviewers resolve relative names against the brief's folder otherwise.
     locations = "\n".join(
-        f"{path}:{_line_ranges(numbers)}" for path, numbers in sorted(changed_lines.items())
-        if numbers
+        f"{root}/{path} (lines {_line_ranges(numbers)})"
+        for path, numbers in sorted(changed_lines.items()) if numbers
     )
     return (
-        f"Goal\n{goal}\n\nAcceptance criteria\n{criteria}\n\n"
+        f"Goal\n{goal}\n\nAcceptance criteria\n{criteria or '(none given beyond the goal)'}\n\n"
         f"Read the diff at {diff_path.resolve().as_posix()}\n"
-        f"Working tree: {tree.resolve().as_posix()}\n\n"
-        f"Recently changed\n{locations or '(no added lines)'}\n\n"
+        f"The project lives in {root}; paths in the diff are relative to it.\n\n"
+        f"Changed files (read each one fully)\n{locations or '(no added lines)'}\n\n"
         "Do NOT run shell/terminal commands (they are denied); read files only with your file-reading tools.\n"
         f"Spend at most ~{minutes} minutes; do not build test harnesses.\n\n"
         "Output one finding per line. Use 🔴 for a blocker, 🟡 for a major issue, and 🟢 for a nit.\n"
         "<🔴|🟡|🟢> <file>:<line> — <problem> — <why>\n"
+        "Write <file> relative to the project folder (e.g. src/app.py).\n"
         "If you could not read the change, output exactly: COULD NOT READ <path>\n"
         "If you find nothing, output exactly: NO FINDINGS\n"
     )
@@ -325,13 +329,23 @@ def _run_reviewer(
             cmd = [
                 runner.resolve("agy"),
                 "-p",
-                f"Read {brief_file.resolve().as_posix()} and do exactly what it says.",
+                # In headless mode one denied command or out-of-folder read silently ends
+                # the run with no output, so say it before anything else.
+                "IMPORTANT: your shell/terminal/command tool is DISABLED in this session. "
+                "A single attempt to run ANY command (ls, cat, git, python, dir...) aborts the "
+                "whole session. You may ONLY read files inside the current directory and "
+                f"{brief_file.parent.resolve().as_posix()}, using your file read and file "
+                f"list/search tools. Now read {brief_file.resolve().as_posix()} and do exactly "
+                "what it says.",
                 "--mode",
                 "plan",
                 "--model",
                 cfg.gemini_model,
                 "--add-dir",
-                str(taskdir),
+                str(brief_file.parent),
+                # agy may load its own skills (e.g. code-review) from here; a denied read
+                # would end the run. Plan mode keeps everything read-only.
+                *(["--add-dir", str(skills)] if (skills := Path.home() / ".agents" / "skills").is_dir() else []),
                 "--print-timeout",
                 f"{timeout}s",
             ]
@@ -419,10 +433,13 @@ def run_review(
     else:
         patch_content = "\n".join(patch_lines) + ("\n" if patch_lines else "")
 
-    patch_path = taskdir / "diff.patch"
+    # Reviewers read the brief and diff from a folder outside the repo: agy refuses to
+    # read git-excluded paths such as .delegate/. Copies are kept in the task dir.
+    exchange = Path(tempfile.mkdtemp(prefix="delegate-review-"))
+    patch_path = exchange / "diff.patch"
     patch_path.write_text(patch_content, encoding="utf-8")
 
-    brief_path = taskdir / "review_brief.md"
+    brief_path = exchange / "review_brief.md"
     minutes = max(1, cfg.timeouts.codex_review // 60)
     brief_content = render_brief(
         goal=goal,
@@ -439,10 +456,15 @@ def run_review(
     codex_out.unlink(missing_ok=True)
     gemini_out.unlink(missing_ok=True)
 
-    results = runner.run_parallel([
-        lambda: _run_reviewer("codex", tree, taskdir, brief_path, cfg),
-        lambda: _run_reviewer("gemini", tree, taskdir, brief_path, cfg),
-    ])
+    try:
+        results = runner.run_parallel([
+            lambda: _run_reviewer("codex", tree, taskdir, brief_path, cfg),
+            lambda: _run_reviewer("gemini", tree, taskdir, brief_path, cfg),
+        ])
+    finally:
+        shutil.copyfile(patch_path, taskdir / "diff.patch")
+        shutil.copyfile(brief_path, taskdir / "review_brief.md")
+        shutil.rmtree(exchange, ignore_errors=True)
     codex_status, codex_raw_findings = results[0]
     gemini_status, gemini_raw_findings = results[1]
 

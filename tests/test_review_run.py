@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pytest
@@ -167,9 +168,13 @@ def test_brief_points_to_patch_in_taskdir(repo, fakes, monkeypatch):
     assert brief_file.is_file()
     brief_text = brief_file.read_text(encoding="utf-8")
     patch_file = state.task_dir(repo, "t1") / "diff.patch"
-    expected_patch_posix = patch_file.resolve().as_posix()
-    assert expected_patch_posix in brief_text
-    assert ".delegate/tasks/t1/diff.patch" in expected_patch_posix
+    assert patch_file.is_file()  # a copy is kept as the record
+    # Reviewers read the diff from outside the repo (agy can't read git-excluded .delegate/).
+    m = re.search(r"Read the diff at (.+/diff\.patch)", brief_text)
+    assert m and ".delegate/" not in m.group(1)
+    assert not repo.resolve().as_posix() in m.group(1)
+    # Changed files are listed with full paths.
+    assert f"{repo.resolve().as_posix()}/a.py" in brief_text
 
 
 def test_triage_records_and_same_as(repo, fakes, monkeypatch, capsys):

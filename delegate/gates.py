@@ -178,8 +178,8 @@ def evaluate(repo: Path, task: Task, cfg: Config) -> Evaluation:
     cmd_map = {
         "no-changes": f"delegate work {task.id}",
         "needs-verify": f"delegate verify {task.id}",
-        "needs-review": f"delegate review {task.id}",
-        "needs-triage": f"delegate triage {task.id}",
+        "needs-review": f'delegate review {task.id} --goal "<one-line goal>"',
+        "needs-triage": f'delegate triage {task.id} <finding-id> fix|contest "<reason>"',
         "needs-approval": f"delegate approve {task.id}",
         "ready": f"delegate done {task.id}",
     }
@@ -195,6 +195,27 @@ def evaluate(repo: Path, task: Task, cfg: Config) -> Evaluation:
     )
 
 
+def stdin_is_interactive() -> bool:
+    """True only when a person can type at stdin.
+
+    `isatty()` alone is not enough on Windows: the NUL device (what tool runners give a
+    child process) reports as a tty. A real console is the one GetConsoleMode accepts.
+    """
+    if not sys.stdin or not sys.stdin.isatty():
+        return False
+    if sys.platform != "win32":
+        return True
+    import ctypes
+    import msvcrt
+
+    try:
+        handle = msvcrt.get_osfhandle(sys.stdin.fileno())
+    except (OSError, ValueError):
+        return False
+    mode = ctypes.c_ulong()
+    return bool(ctypes.windll.kernel32.GetConsoleMode(handle, ctypes.byref(mode)))
+
+
 def latest_round_at(task: Task, diff_hash: str) -> dict | None:
     latest = task.reviews[-1] if task.reviews else None
     return latest if latest and latest.get("diff_hash") == diff_hash else None
@@ -204,7 +225,7 @@ def approve(
     repo: Path,
     task: Task,
     cfg: Config,
-    isatty: Callable[[], bool] = sys.stdin.isatty,
+    isatty: Callable[[], bool] = stdin_is_interactive,
     ask: Callable[[str], str] = input,
 ) -> None:
     if not isatty():
@@ -241,7 +262,10 @@ def approve(
                 tr = task.triage.get(fid, {}).get("decision", "untriaged")
                 print(f"  {fid} ({f.get('severity', '')}): {tr}")
 
-    answer = ask(f"Type task id '{task.id}' to approve: ")
+    try:
+        answer = ask(f"Type task id '{task.id}' to approve: ")
+    except EOFError:
+        raise DelegateError("approval aborted: no answer typed (run it yourself in a terminal)") from None
     if answer.strip() != task.id:
         raise DelegateError(f"approval aborted: entered '{answer.strip()}', expected '{task.id}'")
 

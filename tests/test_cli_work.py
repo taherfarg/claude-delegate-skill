@@ -171,3 +171,14 @@ def test_status_all_cli(repo, monkeypatch, capsys):
     out = capsys.readouterr().out
     ids = [line.split()[0] for line in out.splitlines() if line.strip()]
     assert "t1" in ids and "t2" in ids
+
+
+def test_cli_output_survives_a_non_utf8_console():
+    """On Windows, piped stdout defaults to cp1252, which can't encode the 🔴/🟡/🟢 icons."""
+    import os
+    import subprocess
+    import sys
+    env = {**os.environ, "PYTHONIOENCODING": "cp1252"}
+    code = "from delegate.cli import _utf8_stdio; _utf8_stdio(); print('\U0001f7e1 ok')"
+    proc = subprocess.run([sys.executable, "-c", code], capture_output=True, env=env)
+    assert proc.returncode == 0, proc.stderr
