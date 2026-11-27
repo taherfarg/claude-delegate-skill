@@ -1,4 +1,7 @@
+import os
 import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -25,3 +28,28 @@ def delegate_home(tmp_path, monkeypatch):
     path.mkdir()
     monkeypatch.setenv("DELEGATE_HOME", str(path))
     return path
+
+
+@pytest.fixture
+def fakes(tmp_path, monkeypatch):
+    bin_dir = tmp_path / "fake bin"
+    bin_dir.mkdir()
+    script = Path(__file__).resolve().parent / "fakes" / "fake_cli.py"
+    monkeypatch.setenv("FAKE_BIN", str(bin_dir))
+    # Keep the launchers ASCII even when Python or the checkout has a Unicode path.
+    monkeypatch.setenv("FAKE_CLI_PYTHON", sys.executable)
+    monkeypatch.setenv("FAKE_CLI_SCRIPT", str(script))
+    for name in ("codex", "agy"):
+        (bin_dir / f"{name}.count").write_text("0", encoding="ascii")
+        if os.name == "nt":
+            (bin_dir / f"{name}.cmd").write_text(
+                f'@"%FAKE_CLI_PYTHON%" "%FAKE_CLI_SCRIPT%" {name} %*\n', encoding="ascii",
+            )
+        else:
+            launcher = bin_dir / name
+            launcher.write_text(
+                f'#!/bin/sh\nexec "$FAKE_CLI_PYTHON" "$FAKE_CLI_SCRIPT" {name} "$@"\n', encoding="ascii",
+            )
+            launcher.chmod(0o755)
+    monkeypatch.setenv("PATH", str(bin_dir), prepend=os.pathsep)
+    return bin_dir

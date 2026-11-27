@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from . import git
+from . import git, runner
 from .config import Config, match_glob
 from .git import DelegateError
 
@@ -117,10 +117,6 @@ def _exclude_state(root: Path) -> None:
             stream.write(prefix + b".delegate/\n")
 
 
-def _run_setup(command: str, cwd: Path) -> None:
-    raise NotImplementedError("worktree setup requires the runner")
-
-
 def create_task(repo: Path, task_id: str, title: str, scope: list[str], cfg: Config,
                 worktree: bool = False) -> Task:
     directory = task_dir(repo, task_id)
@@ -142,7 +138,11 @@ def create_task(repo: Path, task_id: str, title: str, scope: list[str], cfg: Con
         )
         save_task(root, task)
         if worktree and cfg.worktree_setup:
-            _run_setup(cfg.worktree_setup, tree)
+            result = runner.run_shell(cfg.worktree_setup, tree, directory / "setup.log", cfg.timeouts.gate)
+            if result.timed_out or result.exit_code != 0:
+                reason = "timed out" if result.timed_out else f"failed with exit code {result.exit_code}"
+                tail = runner.log_tail(result.log_path)
+                raise DelegateError(f"worktree setup {reason}\n{tail}".rstrip())
         return task
 
 
