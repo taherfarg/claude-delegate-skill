@@ -86,22 +86,20 @@ def _cmd_status(repo: Path, cfg: Config, args: argparse.Namespace) -> int:
         task_id = args.id
         with state.task_lock(repo, task_id):
             task = _load_task(repo, task_id)
-            tree = state.task_tree(repo, task)
-            changed = state.changed_files(task, tree)
-            out_scope = state.out_of_scope(task, changed)
-            dirty = state.touched_dirty(task, tree)
-            if changed:
+            ev = gates.evaluate(repo, task, cfg)
+            print(f"task: {task.id}")
+            print(f"phase: {ev.phase}")
+            print(f"risk: {ev.risk}")
+            print(f"diff_hash: {ev.diff_hash}")
+            if ev.files:
                 print("changed files:")
-                for f in changed:
+                for f in ev.files:
                     print(f"  {f}")
-            if out_scope:
-                print("out of scope:")
-                for f in out_scope:
-                    print(f"  {f}")
-            if dirty:
-                print("touched dirty:")
-                for f in dirty:
-                    print(f"  {f}")
+            if ev.blockers:
+                print("blockers:")
+                for b in ev.blockers:
+                    print(f"  {b}")
+            print(f"next: {ev.next_cmd}")
         return 0
 
     tasks_dir = git.main_root(repo) / ".delegate" / "tasks"
@@ -111,23 +109,56 @@ def _cmd_status(repo: Path, cfg: Config, args: argparse.Namespace) -> int:
                 task_id = item.name
                 with state.task_lock(repo, task_id):
                     task = state.load_task(repo, task_id)
-                    tree = state.task_tree(repo, task)
-                    changed = state.changed_files(task, tree)
-                    out_scope = state.out_of_scope(task, changed)
-                    dirty = state.touched_dirty(task, tree)
-                    print(f"task: {task.id}")
-                    if changed:
-                        print("  changed files:")
-                        for f in changed:
-                            print(f"    {f}")
-                    if out_scope:
-                        print("  out of scope:")
-                        for f in out_scope:
-                            print(f"    {f}")
-                    if dirty:
-                        print("  touched dirty:")
-                        for f in dirty:
-                            print(f"    {f}")
+                    if task.outcome is None:
+                        ev = gates.evaluate(repo, task, cfg)
+                        print(f"{task.id}  {ev.phase}  {ev.risk}")
+    return 0
+
+
+def _cmd_approve(repo: Path, cfg: Config, args: argparse.Namespace) -> int:
+    task_id = args.id
+    with state.task_lock(repo, task_id):
+        task = _load_task(repo, task_id)
+        gates.approve(repo, task, cfg)
+    return 0
+
+
+def _cmd_done(repo: Path, cfg: Config, args: argparse.Namespace) -> int:
+    task_id = args.id
+    with state.task_lock(repo, task_id):
+        task = _load_task(repo, task_id)
+        ev = gates.evaluate(repo, task, cfg)
+        if ev.blockers:
+            for b in ev.blockers:
+                print(b)
+            return 2
+        task.outcome = "done"
+        try:
+            from . import metrics
+
+            metrics.record(task, cfg, "done", ev)
+        except ImportError:
+            pass
+        state.save_task(repo, task)
+        if task.worktree:
+            print(f"git merge delegate/{task.id}")
+            print(f"git worktree remove {task.worktree}")
+    return 0
+
+
+def _cmd_abandon(repo: Path, cfg: Config, args: argparse.Namespace) -> int:
+    task_id = args.id
+    with state.task_lock(repo, task_id):
+        task = _load_task(repo, task_id)
+        ev = gates.evaluate(repo, task, cfg)
+        task.outcome = "abandoned"
+        try:
+            from . import metrics
+
+            metrics.record(task, cfg, "abandoned", ev)
+        except ImportError:
+            pass
+        state.save_task(repo, task)
     return 0
 
 
@@ -268,11 +299,18 @@ def main(argv: list[str] | None = None) -> int:
     triage_parser.add_argument("reason", nargs="?", default="")
     triage_parser.add_argument("--same-as", default=None)
 
-    doctor_parser = subparsers.add_parser("doctor")
+    subparsers.add_parser("doctor")
+    subparsers.add_parser("init")
+    subparsers.add_parser("report")
 
-    init_parser = subparsers.add_parser("init")
+    approve_parser = subparsers.add_parser("approve")
+    approve_parser.add_argument("id")
 
-    report_parser = subparsers.add_parser("report")
+    done_parser = subparsers.add_parser("done")
+    done_parser.add_argument("id")
+
+    abandon_parser = subparsers.add_parser("abandon")
+    abandon_parser.add_argument("id")
 
     try:
         args = parser.parse_args(argv)
@@ -300,6 +338,12 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_review(repo, cfg, args)
         elif args.command == "triage":
             return _cmd_triage(repo, cfg, args)
+        elif args.command == "approve":
+            return _cmd_approve(repo, cfg, args)
+        elif args.command == "done":
+            return _cmd_done(repo, cfg, args)
+        elif args.command == "abandon":
+            return _cmd_abandon(repo, cfg, args)
     except ReviewRefusal as exc:
         print(exc.message)
         return exc.exit_code

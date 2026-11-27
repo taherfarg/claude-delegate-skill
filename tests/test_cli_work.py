@@ -169,5 +169,5 @@ def test_status_all_cli(repo, monkeypatch, capsys):
     code = main(["status"])
     assert code == 0
     out = capsys.readouterr().out
-    assert "task: t1" in out
-    assert "task: t2" in out
+    ids = [line.split()[0] for line in out.splitlines() if line.strip()]
+    assert "t1" in ids and "t2" in ids
