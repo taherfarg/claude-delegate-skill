@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 from typing import NoReturn
 
-from . import __version__, git, runner, state
+from . import __version__, gates, git, runner, state
 from .config import Config, ConfigError, load_config
 from .git import DelegateError
 from .work import diff_stat, run_worker
@@ -130,6 +130,32 @@ def _cmd_status(repo: Path, cfg: Config, args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_verify(repo: Path, cfg: Config, args: argparse.Namespace) -> int:
+    with state.task_lock(repo, args.id):
+        task = _load_task(repo, args.id)
+        results = gates.run_gates(repo, task, cfg)
+        all_passed = True
+        for name, record in results.items():
+            status = record["status"]
+            if status == "pass":
+                print(f"PASS {name}")
+            elif status == "timeout":
+                print(f"TIMEOUT {name}")
+                tail = runner.log_tail(Path(record["log"]))
+                if tail:
+                    print(tail)
+                all_passed = False
+            else:
+                print(f"FAIL {name}")
+                tail = runner.log_tail(Path(record["log"]))
+                if tail:
+                    print(tail)
+                if record.get("reason"):
+                    print(record["reason"])
+                all_passed = False
+        return 0 if all_passed else 2
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _Parser(prog="delegate")
     parser.add_argument("--version", action="version", version=__version__)
@@ -156,6 +182,9 @@ def main(argv: list[str] | None = None) -> int:
     status_parser = subparsers.add_parser("status")
     status_parser.add_argument("id", nargs="?", default=None)
 
+    verify_parser = subparsers.add_parser("verify")
+    verify_parser.add_argument("id")
+
     try:
         args = parser.parse_args(argv)
         repo = git.main_root(Path.cwd())
@@ -170,6 +199,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_work(repo, cfg, args)
         elif args.command == "status":
             return _cmd_status(repo, cfg, args)
+        elif args.command == "verify":
+            return _cmd_verify(repo, cfg, args)
     except (DelegateError, ConfigError) as exc:
         print(f"delegate: {exc}", file=sys.stderr)
         return 1
