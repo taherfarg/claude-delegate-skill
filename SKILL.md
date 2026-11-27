@@ -33,8 +33,9 @@ Verify external CLIs:
 
 Install the engine:
 ```bash
-pip install --user git+https://github.com/taherfarg/claude-delegate-skill
+pip install --user -e ~/.claude/skills/delegate
 ```
+(If `delegate` isn't on PATH, `python -m delegate <command>` works the same.)
 Verify the installation:
 ```bash
 delegate doctor

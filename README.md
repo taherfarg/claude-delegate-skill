@@ -85,16 +85,13 @@ git clone https://github.com/taherfarg/claude-delegate-skill "$env:USERPROFILE\.
 ```
 
 ### 2. Install the `delegate` CLI
-Requires Python >= 3.11 (standard library only at runtime):
+Requires Python >= 3.11 (standard library only at runtime). Install it from the skill folder you just cloned, so a single `git pull` there updates both the skill and the engine:
 
 ```bash
-pip install --user git+https://github.com/taherfarg/claude-delegate-skill
+pip install --user -e ~/.claude/skills/delegate
 ```
 
-Or from a local checkout:
-```bash
-pip install -e .
-```
+PowerShell: `pip install --user -e "$env:USERPROFILE\.claude\skills\delegate"`. If `delegate` isn't found afterwards, add Python's user scripts folder to PATH (`python -m site --user-base`, then its `Scripts`/`bin`), or run `python -m delegate`.
 
 Verify your environment:
 ```bash

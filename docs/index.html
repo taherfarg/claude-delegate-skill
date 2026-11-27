@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Let Claude plan, Codex implement, and Gemini research and review. A Claude Code skill for putting your subscriptions to work together.">
+  <title>delegate — One elephant. Two goldfish.</title>
+  <script>
+    try {
+      const saved = localStorage.getItem('delegate-theme');
+      if (saved === 'light' || saved === 'dark') document.documentElement.dataset.theme = saved;
+    } catch { /* Storage is optional. */ }
+  </script>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: light-dark(#faf8f2, #1a1c19);
+      --card: light-dark(#fffdf8, #222521);
+      --ink: light-dark(#24251f, #f1eee3);
+      --muted: light-dark(#595c52, #bdbfb2);
+      --hairline: light-dark(#d9d8cc, #41453d);
+      --soft-line: light-dark(#e5e2d7, #343930);
+      --wash: light-dark(#f1efe5, #292c25);
+      --accent: light-dark(#a53b20, #ffac89);
+      --accent-wash: light-dark(#f7e4d8, #493127);
+      --sage: light-dark(#41624c, #b2d6af);
+      --sage-wash: light-dark(#e5eddf, #303e32);
+      --ochre: light-dark(#745821, #edce8f);
+      --ochre-wash: light-dark(#f4eacb, #413c2b);
+      --primary: light-dark(#ad4024, #f3a17c);
+      --on-primary: light-dark(#fffaf2, #271c16);
+      --focus: light-dark(#1c608e, #9bdcff);
+      --plate: #f1efe3;
+      --plate-grid: #737b6820;
+      --plate-ink: #514f43;
+      --plate-link: #838773;
+      --elephant-fill: #c0c2ad;
+      --elephant-ink: #41483c;
+      --fish-fill: #eba46e;
+      --fish-ink: #82492d;
+      --ivory: #f9f2d9;
+      --terminal: #222620;
+      --term-bar: #2b3029;
+      --term-edge: #454b40;
+      --term-text: #e6e8d9;
+      --term-muted: #b4bcaa;
+      --term-orange: #f3b28b;
+      --term-green: #b0d79c;
+      --term-yellow: #e3c27a;
+      --dot-red: #da8a77;
+      --dot-yellow: #d8b368;
+      --dot-green: #9ab58c;
+      --blocker: light-dark(#98372b, #ffb0a4);
+      --major: light-dark(#735716, #efd083);
+      --nit: var(--sage);
+      --shadow: light-dark(#50432914, #00000030);
+      --display: Georgia, "Times New Roman", serif;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme]) { color-scheme: dark; } }
+    :root[data-theme="light"] { color-scheme: light; }
+    :root[data-theme="dark"] { color-scheme: dark; }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 92px; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font: 1rem/1.6 var(--sans); }
+    h1, h2, h3, p, figure { margin: 0; }
+    h1, h2, .role h3 { font-family: var(--display); font-weight: 400; }
+    h2 { font-size: clamp(2.2rem, 4vw, 3.25rem); line-height: 1.12; letter-spacing: -.052em; }
+    a { color: inherit; text-underline-offset: .2em; }
+    button { font: inherit; color: inherit; cursor: pointer; }
+    a, button { -webkit-tap-highlight-color: transparent; }
+    :focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
+    [hidden] { display: none !important; }
+    .wrap { width: min(1180px, calc(100% - clamp(40px, 9vw, 144px))); margin-inline: auto; }
+    .icon { width: 19px; height: 19px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
+    .sprite, .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .skip { position: fixed; z-index: 10; inset: 10px auto auto 10px; padding: 9px 15px; background: var(--ink); color: var(--paper); transform: translateY(-180%); }
+    .skip:focus { transform: none; }
+    .topbar { position: sticky; top: 0; z-index: 5; background: var(--paper); border-bottom: 1px solid var(--hairline); }
+    .bar { min-height: 70px; display: flex; align-items: center; justify-content: space-between; gap: 28px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; font: 600 32px/1 var(--display); letter-spacing: -.065em; text-decoration: none; }
+    .brand-mark { width: 29px; height: 30px; color: var(--accent); }
+    .bar nav { margin-left: auto; display: flex; gap: clamp(18px, 3vw, 37px); align-items: center; }
+    .bar nav a { font-size: .875rem; font-weight: 550; text-decoration: none; padding-block: 8px; }
+    .bar nav a:hover, footer a:hover { color: var(--accent); text-decoration: underline; }
+    .theme { border: 1px solid var(--hairline); border-radius: 50%; display: grid; place-items: center; width: 36px; height: 36px; background: var(--card); }
+    .theme:hover { background: var(--wash); }
+    .theme .icon { width: 17px; }
+    .theme[aria-pressed="true"] .moon, .theme[aria-pressed="false"] .sun { display: none; }
+    .hero { display: grid; grid-template-columns: 1fr 1.05fr; align-items: center; gap: clamp(32px, 5.3vw, 85px); padding-block: clamp(48px, 5.2vw, 80px) clamp(38px, 4.1vw, 60px); }
+    .hero > *, .card, .split > *, .log-row { min-width: 0; }
+    .skill-tag { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px 4px 8px; border: 1px solid var(--hairline); border-radius: 5px; color: var(--muted); background: var(--card); font: 600 .66rem/1.45 var(--mono); letter-spacing: .085em; text-transform: uppercase; }
+    .skill-tag .icon { width: 14px; height: 14px; color: var(--accent); }
+    h1 { margin: 21px 0 17px; font-size: clamp(3.6rem, 6.5vw, 6.05rem); line-height: .99; letter-spacing: -.065em; }
+    h1 em { color: var(--accent); font-weight: 400; }
+    .tagline { font-size: clamp(1.15rem, 1.65vw, 1.49rem); line-height: 1.37; font-weight: 530; letter-spacing: -.035em; }
+    .intro { max-width: 44ch; margin-top: 11px; color: var(--muted); font-size: 1rem; }
+    .actions { display: flex; gap: 11px; flex-wrap: wrap; margin-top: 27px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; border: 1px solid var(--hairline); border-radius: 7px; min-height: 43px; padding: 9px 17px; background: var(--card); font-size: .86rem; font-weight: 650; text-decoration: none; transition: transform .18s, box-shadow .18s; }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px var(--shadow); }
+    .btn.primary { color: var(--on-primary); background: var(--primary); border-color: var(--primary); }
+    .btn .icon { width: 16px; height: 16px; }
+    .demo { overflow: hidden; border: 1px solid var(--hairline); border-radius: 13px; background: var(--plate); box-shadow: 0 9px 24px -6px var(--shadow), 0 2px 5px var(--shadow); }
+    .diagram { background-color: var(--plate); background-image: linear-gradient(var(--plate-grid) 1px, transparent 1px), linear-gradient(90deg, var(--plate-grid) 1px, transparent 1px), radial-gradient(ellipse at 28% 60%, var(--ivory), transparent 70%); background-size: 20px 20px, 20px 20px, auto; }
+    .diagram > svg { display: block; width: 100%; height: auto; }
+    .diagram text { fill: var(--plate-ink); font: 600 10.5px var(--mono); letter-spacing: 1.4px; }
+    .diagram .wires { fill: none; stroke: var(--plate-link); stroke-width: 1.3; stroke-dasharray: 4 4; }
+    .console { background: var(--terminal); color: var(--term-text); font: .785rem/1.6 var(--mono); }
+    .console-head { display: flex; gap: 12px; align-items: center; min-height: 34px; padding: 2px 16px; border-bottom: 1px solid var(--term-edge); background: var(--term-bar); color: var(--term-muted); font-size: .67rem; }
+    .dots { display: inline-flex; gap: 5px; }
+    .dots i { display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--dot-red); }
+    .dots i:nth-child(2) { background: var(--dot-yellow); }
+    .dots i:nth-child(3) { background: var(--dot-green); }
+    .replay { display: grid; place-items: center; margin-left: auto; width: 29px; height: 27px; border: 0; border-radius: 3px; background: transparent; color: var(--term-muted); }
+    .replay:hover { color: var(--term-text); background: var(--term-edge); }
+    .replay .icon { width: 14px; height: 14px; }
+    .log { padding: 13px 19px 15px; }
+    .log-row { display: flex; gap: 9px; align-items: baseline; overflow-wrap: anywhere; }
+    .prompt { color: var(--term-orange); }
+    .log-detail { color: var(--term-muted); }
+    .finding-c { color: var(--term-yellow); }
+    .finding-g, .success { color: var(--term-green); }
+    .log-row .agent { display: inline-block; min-width: 5ch; }
+    .success { margin-top: 4px; }
+    .cursor { display: inline-block; width: .57em; height: .98em; vertical-align: -.14em; margin-left: .45em; background: var(--term-green); }
+    .typing-line { display: grid; min-width: 0; }
+    .typing-line > * { grid-area: 1 / 1; }
+    .typing-guide { visibility: hidden; }
+    .trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .card { border: 1px solid var(--hairline); border-radius: 11px; background: var(--card); }
+    .benefit { padding: 23px 23px 22px; }
+    .tile { display: inline-grid; place-items: center; width: 37px; height: 37px; border-radius: 9px; }
+    .coral { background: var(--accent-wash); color: var(--accent); }
+    .green { background: var(--sage-wash); color: var(--sage); }
+    .gold { background: var(--ochre-wash); color: var(--ochre); }
+    .benefit h3 { margin: 12px 0 4px; font-size: 1.04rem; letter-spacing: -.028em; }
+    .benefit p, .role p, .steps p, .section-copy { color: var(--muted); font-size: .93rem; line-height: 1.6; }
+    .section { margin-top: clamp(54px, 6.5vw, 92px); }
+    .section-head { margin-bottom: 25px; }
+    .roles { padding-top: clamp(35px, 4vw, 55px); border-top: 1px solid var(--hairline); }
+    .role { padding: 23px; position: relative; overflow: hidden; }
+    .role-icon { height: 44px; width: 66px; position: absolute; top: 19px; right: 19px; }
+    .role-label { color: var(--muted); font: 600 .66rem/1.5 var(--mono); letter-spacing: .065em; text-transform: uppercase; }
+    .role h3 { margin: 3px 0 13px; font-size: 2rem; line-height: 1.1; letter-spacing: -.045em; }
+    .role code, .steps code, .requirements code { font: .92em var(--mono); }
+    .steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .steps li { position: relative; padding-right: 21px; }
+    .steps li::before { content: ""; height: 1px; background: var(--hairline); position: absolute; top: 16px; left: 0; right: 0; }
+    .steps li:last-child::before { display: none; }
+    .step-n { position: relative; display: grid; place-items: center; width: 33px; height: 33px; border-radius: 50%; font: .83rem var(--mono); color: var(--accent); background: var(--accent-wash); border: 1px solid var(--hairline); }
+    .steps h3 { font-size: 1rem; letter-spacing: -.025em; margin: 12px 0 6px; }
+    .split { display: grid; grid-template-columns: .75fr 1.35fr; gap: clamp(28px, 6vw, 90px); align-items: start; border-top: 1px solid var(--hairline); padding-top: clamp(35px, 4vw, 55px); }
+    .section-copy { margin-top: 12px; max-width: 43ch; }
+    .review-list { list-style: none; margin: 0; padding: 0 18px; }
+    .review-list li { padding: 14px 0; display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 4px 12px; align-items: baseline; }
+    .review-list li + li { border-top: 1px solid var(--soft-line); }
+    .review-list code { font: .8rem var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+    .review-list p { grid-column: 2; font-size: .91rem; }
+    .severity { font: 650 .76rem var(--mono); }
+    .severity::before { content: ""; display: inline-block; width: 7px; height: 7px; background: currentColor; border-radius: 50%; margin-right: 7px; }
+    .blocker { color: var(--blocker); } .major { color: var(--major); } .nit { color: var(--nit); }
+    .install { margin-bottom: clamp(50px, 6vw, 85px); }
+    .command { display: flex; align-items: center; gap: 13px; padding: 17px; background: var(--terminal); color: var(--term-text); border-radius: 8px; }
+    .command pre { flex: 1; min-width: 0; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: .82rem/1.65 var(--mono); }
+    .command code { font: inherit; }
+    .copy { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 8px; background: var(--term-bar); border: 1px solid var(--term-edge); color: var(--term-text); border-radius: 5px; font: .74rem var(--mono); }
+    .copy:hover { background: var(--term-edge); }
+    .copy:focus-visible, .replay:focus-visible { outline-color: var(--term-orange); }
+    .copy .icon { width: 14px; height: 14px; }
+    .copy-note { color: var(--muted); font-size: .82rem; }
+    .requirements h3 { margin: 20px 0 7px; font-size: .94rem; }
+    .requirements ul { display: flex; flex-wrap: wrap; gap: 5px 15px; padding: 0; margin: 0; list-style: none; font-size: .84rem; color: var(--muted); }
+    .requirements li::before { content: "✓"; margin-right: 5px; color: var(--sage); }
+    footer { border-top: 1px solid var(--hairline); }
+    .foot { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; padding-block: 23px; font-size: .8rem; color: var(--muted); }
+    .foot .brand { color: var(--ink); font-size: 23px; letter-spacing: -.05em; gap: 6px; }
+    .foot .brand-mark { width: 20px; height: 23px; }
+    .credit { margin-left: auto; }
+    .foot-link { display: inline-flex; gap: 5px; align-items: center; }
+    .foot-link .icon { width: 13px; height: 13px; }
+    @media (prefers-reduced-motion: no-preference) {
+      .revealed { animation: arrive .45s ease-out both; }
+      @keyframes arrive { from { opacity: .68; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    }
+    @media (max-width: 900px) {
+      .hero { gap: 24px; grid-template-columns: 1fr 1fr; }
+      h1 { font-size: clamp(3.5rem, 7vw, 4.3rem); }
+      .benefit, .role { padding: 19px; }
+      .role-icon { width: 53px; right: 12px; top: 38px; height: 35px; }
+      .log { padding-inline: 12px; }
+      .steps li { padding-right: 13px; }
+    }
+    @media (max-width: 730px) {
+      .hero { grid-template-columns: 1fr; gap: 32px; }
+      h1 { font-size: clamp(3.6rem, 10vw, 4.8rem); }
+      .intro { max-width: 48ch; }
+      .demo { width: min(100%, 560px); justify-self: center; }
+      .trio { grid-template-columns: 1fr; gap: 10px; }
+      .benefit { display: grid; grid-template-columns: 38px 1fr; gap: 3px 15px; }
+      .benefit .tile { grid-row: span 2; }
+      .benefit h3 { margin: 0; }
+      .benefit p { grid-column: 2; }
+      .role-icon { width: 65px; right: 20px; }
+      .split { grid-template-columns: 1fr; gap: 20px; }
+      .steps { display: block; }
+      .steps li { padding: 1px 0 23px 48px; }
+      .steps li:last-child { padding-bottom: 0; }
+      .steps li::before { top: 0; bottom: 0; left: 16px; right: auto; width: 1px; height: auto; }
+      .step-n { position: absolute; top: 0; left: 0; }
+      .steps h3 { margin: 1px 0 3px; }
+      .credit { order: 1; width: 100%; margin-left: 0; }
+      .foot-link { margin-left: auto; }
+    }
+    @media (max-width: 540px) {
+      html { scroll-padding-top: 111px; }
+      .bar { display: grid; grid-template-columns: 1fr auto; gap: 0 12px; padding-top: 10px; }
+      .bar .brand { justify-self: start; font-size: 27px; }
+      .bar nav { grid-row: 2; grid-column: 1 / -1; margin: 0; justify-content: space-between; }
+      .bar nav a { font-size: .81rem; }
+      .bar .theme { grid-column: 2; grid-row: 1; width: 32px; height: 32px; }
+      .hero { padding-top: 36px; }
+      .skill-tag { font-size: .62rem; }
+      .diagram text { font-size: 13px; }
+      .console { font-size: .73rem; }
+      .command { flex-wrap: wrap; }
+      .command pre { flex-basis: 100%; }
+      .review-list li { grid-template-columns: 72px minmax(0, 1fr); gap: 5px 6px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+      .btn:hover { transform: none; }
+    }
+  </style>
+</head>
+<body id="top">
+  <a class="skip" href="#main">Skip to content</a>
+  <svg class="sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="brand" viewBox="0 0 32 32">
+        <path fill="currentColor" d="M2 14.8 12.5 4.3h7.1L9.1 14.8Zm0 3.2h7.1l10.5 10.5h-7.1Zm10.3-3.2L22.8 4.3h7.1L19.4 14.8Zm0 3.2h7.1l10.5 10.5h-7.1Z"/>
+      </symbol>
+      <symbol id="moon" viewBox="0 0 24 24"><path d="M20.6 14A8.9 8.9 0 0 1 10 3.4 9 9 0 1 0 20.6 14Z"/></symbol>
+      <symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.8"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4m0-14.2-1.4 1.4M6.3 17.7l-1.4 1.4"/></symbol>
+      <symbol id="terminal-icon" viewBox="0 0 24 24"><path d="m3 5 6.5 6L3 17m10 0h7"/></symbol>
+      <symbol id="github" viewBox="0 0 24 24">
+        <path fill="currentColor" stroke="none" d="M12 .9a11.1 11.1 0 0 0-3.51 21.63c.55.1.76-.24.76-.54v-2.06c-3.09.67-3.75-1.31-3.75-1.31-.51-1.28-1.24-1.62-1.24-1.62-1.01-.69.08-.68.08-.68 1.12.08 1.7 1.15 1.7 1.15.99 1.7 2.6 1.21 3.24.93.1-.72.39-1.21.7-1.49-2.47-.28-5.06-1.23-5.06-5.49 0-1.21.43-2.2 1.14-2.97-.11-.28-.49-1.41.11-2.94 0 0 .93-.3 3.05 1.14a10.6 10.6 0 0 1 5.56 0c2.12-1.44 3.05-1.14 3.05-1.14.6 1.53.22 2.66.11 2.94.71.77 1.14 1.76 1.14 2.97 0 4.27-2.6 5.21-5.08 5.48.4.35.75 1.02.75 2.06v3.03c0 .3.2.65.77.54A11.1 11.1 0 0 0 12 .9Z"/>
+      </symbol>
+      <symbol id="arrow-down" viewBox="0 0 24 24"><path d="M12 4v15m-6-6 6 6 6-6"/></symbol>
+      <symbol id="arrow-out" viewBox="0 0 24 24"><path d="M5 19 19 5M7 5h12v12"/></symbol>
+      <symbol id="repeat" viewBox="0 0 24 24"><path d="M3 4v6h6M4 10a8 8 0 1 1 .4 6"/></symbol>
+      <symbol id="gauge" viewBox="0 0 24 24"><path d="M3.5 18a9.5 9.5 0 1 1 17 0ZM12 5v2m-6 1 1.5 1.5M18 8l-1.5 1.5M12 15l3-4"/><circle cx="12" cy="15" r="1.4"/></symbol>
+      <symbol id="bubbles" viewBox="0 0 24 24"><path d="M14.5 10.7a2 2 0 0 1-2 2h-5l-4 3V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2ZM8.7 16v.5a2 2 0 0 0 2 2h6l4 3V11a2 2 0 0 0-2-2h-1"/></symbol>
+      <symbol id="parallel" viewBox="0 0 24 24"><path d="m12 2-8 12h6l-1 8L21 8h-8l1-6Z"/></symbol>
+      <symbol id="copy-icon" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M15 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
+      <pattern id="etch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(28)">
+        <path d="M0 0v5" stroke="var(--elephant-ink)" stroke-width=".95"/>
+      </pattern>
+      <pattern id="scales" width="10" height="7" patternUnits="userSpaceOnUse">
+        <path d="M-5 1q4 6 8 1M5 1q4 6 8 1M0 5q4 6 8 1" fill="none" stroke="var(--fish-ink)" stroke-width=".8"/>
+      </pattern>
+      <symbol id="elephant" viewBox="0 0 300 200">
+        <g fill="var(--elephant-fill)" stroke="var(--elephant-ink)" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round">
+          <!-- Far legs, visible behind the near flank. -->
+          <path d="M71 103q-2 26 5 46l14 13q3 5-2 7l-16 6q-7 1-10-6l-10-15q-8-10-12-23l-1-25Zm83 6 21-2q0 28 7 43l7 17q3 7-3 8l-18 1q-5-1-6-8l-6-19q-9-21-12-31Z"/>
+          <path d="M71 103q-2 26 5 46l14 13q3 5-2 7l-16 6q-7 1-10-6l-10-15q-8-10-12-23l-1-25Zm83 6 21-2q0 28 7 43l7 17q3 7-3 8l-18 1q-5-1-6-8l-6-19q-9-21-12-31Z" fill="url(#etch)" opacity=".62"/>
+          <!-- Continuous profile, from the crown to the curled trunk and feet. -->
+          <path d="M31 84C31 58 48 37 76 30c23-6 44-1 61 0 14 2 25-2 37-7 11-5 22-7 31-5 6-5 17-5 24 0 9 4 15 13 15 23 0 6 2 10 6 17 8 16 4 37 4 52-1 15 1 30 9 30 7 1 11-8 11-16 0-5 5-6 7-1 5 14-2 34-17 36-21 3-30-20-31-42l-2-22-13-11c-6 6-14 10-21 10-1 13-5 21-10 28-6 11-7 27-8 39l1 13c0 5-2 7-7 8l-19 1c-4 0-5-3-4-7l4-16 1-35c-25 6-50 5-70-2-3 10-8 17-16 26l-9 20 1 9c-1 4-4 5-8 5l-19-1c-5 0-6-3-4-8l7-13c3-10 4-19 4-29-9-14-13-31-10-48Z"/>
+          <g fill="url(#etch)" stroke="none" opacity=".72">
+            <path d="M37 56c12-18 37-28 58-27-20 4-36 18-44 30-7 13-9 30-7 43-8-4-11-11-13-19 0-12 1-19 6-27Z"/>
+            <path d="M34 100c11 22 24 26 37 24 0 13-13 19-19 32l-6 22-14-1 7-16c3-12 4-21 3-29Z"/>
+            <path d="M81 110c30 15 65 15 88-1l-8 16c-28 6-52 5-77-2Z"/>
+            <path d="M173 113c8-4 16-12 21-21-1 13-5 23-9 30-7 16-7 34-6 52l-9 4c-2-13-3-25-1-39Z"/>
+            <path d="M212 77q12 4 24-1c5 18 2 52 13 68 10 15 23 6 30-5-4 20-25 29-38 8-8-14-8-36-10-52l-15-10Z"/>
+          </g>
+          <path d="M34 65c-11 12-11 28-12 44-1 8-3 16-8 22m18-58c-7 13-5 27-7 38-1 8-4 15-9 21" fill="none" stroke-width="1.6"/>
+          <path d="M17 125c-7 2-6 11-12 15 9 0 15-7 13-14Z" fill="var(--elephant-ink)"/>
+          <path d="M202 24c-16-8-43 1-53 19-5 9 2 18 11 25 8 7 13 19 21 24 6 4 12-4 14-12 3-10 12-19 14-31 3-11 0-20-7-25Z"/>
+          <path d="M198 25c-18-2-36 7-44 18-4 7 2 16 9 21 10 8 13 21 20 24 5 2 10-6 13-15-7 10-12 10-17 0-4-11-17-14-17-26 2-10 20-18 36-22Z" fill="url(#etch)" stroke="none"/>
+          <path d="M151 42c15-16 32-20 46-18m-39 24c1 13 15 18 20 31m25-47c5 14-3 30-8 35m20-40q7-4 14 2m-16 20q6-4 13 0" fill="none" stroke-width="1.15"/>
+          <path d="M216 52q5-4 10 0-5 3-10 0Z" fill="var(--ivory)" stroke-width="1.2"/>
+          <circle cx="221" cy="52" r="1.7" fill="var(--elephant-ink)" stroke="none"/>
+          <path d="M213 76c12 4 28 1 42-8-4 11-21 20-36 18Z" fill="var(--ivory)" stroke-width="1.5"/>
+          <g fill="none" stroke-width="1.05" opacity=".92">
+            <path d="M48 62q-6 17-2 28m6-34q-5 11-5 19m18 39q8 4 9 10m-11-6q5 2 7 6m17-15q11 6 20 6m-5-1q15 5 27 2m15-77q-5 8-4 15m-4-12q-3 6-2 11m40 42q-7 9-9 18"/>
+            <path d="M43 140q5 3 9 1m-10 5q5 2 8 1m-9 6 6 1m110-15q7 4 13 2m-14 5q5 3 11 2m-11 7q4 2 9 1m-10 8q5 1 8 0"/>
+            <path d="m239 53 8-3m-6 9q5 0 8-3m-6 9 9-3m-13 31q6 0 12-4m-12 12q7-1 10-4m-10 13q5 0 9-4m-8 13 8-3m-7 11 7-2m-6 11 7-2m-4 10 5-2m24-9 5 1"/>
+            <path d="M31 177q4-7 7 1m1 1q3-9 7 0m2 0q3-8 7-1m96-1q3-6 7 1m2 0q3-8 7 0m2 0q3-7 7-1"/>
+          </g>
+        </g>
+      </symbol>
+      <symbol id="goldfish" viewBox="0 0 140 80">
+        <g fill="var(--fish-fill)" stroke="var(--fish-ink)" stroke-width="1.65" stroke-linejoin="round" stroke-linecap="round">
+          <path d="M39 30C46 20 45 10 53 5c0 6 5 3 8 5 11 4 17 10 22 23Z"/>
+          <path d="M59 52q13 8 23 19 3-10-7-19Zm-18 1c0 8 6 15 14 19 3-7-1-13-5-19Z"/>
+          <path d="M85 37c16-1 23-20 46-24-8 9-5 19-16 27 5 3 7 13 13 21-20 1-29-11-43-12Z"/>
+          <path d="M8 41q1-4 5-5c9-15 27-22 44-18 16 3 23 15 36 18l6 6-7 7c-13 1-20 11-38 13-16 2-32-5-41-16-4-1-6-3-5-5Z"/>
+          <path d="M38 21c15-4 33 2 45 15l10 5c-15 2-20 15-41 17-6 1-12 0-18-3q12-17 4-34Z" fill="url(#scales)" stroke="none"/>
+          <path d="M37 26q9 16-2 28m4-21q4 10-1 16m-24-5 7 1m73-6q15-1 30-21m-26 24q12-6 19-11m-17 14q14 0 21 9m-22-9q14 4 23 12m-72-37 3-9m3 9 2-8m3 10 2-7m2 9 2-6" fill="none" stroke-width="1"/>
+          <path d="M42 45q7 1 16 10-12 2-19-6Z"/>
+          <circle cx="23" cy="36" r="4.1" fill="var(--ivory)"/><circle cx="22.5" cy="36" r="1.95" fill="var(--fish-ink)" stroke="none"/>
+        </g>
+      </symbol>
+    </defs>
+  </svg>
+  <header class="topbar">
+    <div class="wrap bar">
+      <a class="brand" href="#top"><svg class="brand-mark" aria-hidden="true"><use href="#brand"/></svg>delegate</a>
+      <nav aria-label="Main navigation"><a href="#how-it-works">How it works</a><a href="#review-loop">Review loop</a><a href="#install">Install</a></nav>
+      <button type="button" class="theme" id="theme" aria-label="Dark theme" aria-pressed="false" title="Toggle dark theme" hidden>
+        <svg class="icon moon" aria-hidden="true"><use href="#moon"/></svg><svg class="icon sun" aria-hidden="true"><use href="#sun"/></svg>
+      </button>
+    </div>
+  </header>
+  <main class="wrap" id="main" tabindex="-1">
+    <section class="hero" aria-labelledby="headline">
+      <div>
+        <span class="skill-tag"><svg class="icon" aria-hidden="true"><use href="#terminal-icon"/></svg>Claude Code skill</span>
+        <h1 id="headline">One elephant.<br><em>Two goldfish.</em></h1>
+        <p class="tagline">Your subscriptions, working together.</p>
+        <p class="intro">Claude keeps the plan in its head, hands the code to Codex, and brings in Gemini for research and a fresh pair of eyes.</p>
+        <div class="actions">
+          <a class="btn primary" href="https://github.com/taherfarg/claude-delegate-skill" rel="noopener"><svg class="icon" aria-hidden="true"><use href="#github"/></svg>View on GitHub</a>
+          <a class="btn" href="#install">Install<svg class="icon" aria-hidden="true"><use href="#arrow-down"/></svg></a>
+        </div>
+      </div>
+      <div class="demo">
+        <div class="diagram">
+          <svg viewBox="0 0 540 228" role="img" aria-label="Claude, the elephant, delegates to two goldfish, Codex and Gemini.">
+            <g class="wires">
+              <path d="M260 110h40q10 0 10-10V64q0-10 10-10h43m-53 45v55q0 10 10 10h43"/>
+              <path d="m358 50 5 4-5 4m0 102 5 4-5 4" stroke-dasharray="none"/>
+            </g>
+            <circle cx="260" cy="110" r="2.5" fill="var(--plate-link)"/>
+            <use href="#elephant" x="26" y="32" width="240" height="160"/>
+            <use href="#goldfish" x="365" y="18" width="113" height="65"/>
+            <use href="#goldfish" x="365" y="127" width="113" height="65"/>
+            <g text-anchor="middle"><text x="141" y="204">CLAUDE</text><text x="421" y="98">CODEX</text><text x="421" y="207">GEMINI</text></g>
+          </svg>
+        </div>
+        <div class="console">
+          <div class="console-head">
+            <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span>delegate / example session</span>
+            <button type="button" id="replay" class="replay" aria-label="Replay terminal session" title="Replay session" hidden><svg class="icon" aria-hidden="true"><use href="#repeat"/></svg></button>
+          </div>
+          <p class="sr">Claude briefs Codex to add CSV export. The patch passes eight tests. Codex flags quote escaping at csv.ts line 24. Gemini suggests a clearer name at line 31. Claude fixes both. Round two returns no findings.</p>
+          <div class="log" id="log" aria-hidden="true">
+            <div class="log-row"><b class="prompt">❯</b><span class="typing-line"><span>codex exec "Add CSV export"</span></span></div>
+            <div class="log-row log-detail"><span>↳</span><span class="typing-line"><span>Patch ready · 8 tests passed</span></span></div>
+            <div class="log-row"><span class="agent finding-c">codex</span><span class="typing-line"><span>MAJOR · csv.ts:24 · Escape quotes</span></span></div>
+            <div class="log-row"><span class="agent finding-g">gemini</span><span class="typing-line"><span>NIT · csv.ts:31 · Rename buf</span></span></div>
+            <div class="log-row success"><span>✓</span><span class="typing-line"><span>round 2: NO FINDINGS</span></span><i class="cursor"></i></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section aria-labelledby="benefits">
+      <h2 class="sr" id="benefits">Benefits</h2>
+      <div class="trio">
+        <article class="card benefit" data-reveal>
+          <span class="tile coral"><svg class="icon" aria-hidden="true"><use href="#gauge"/></svg></span>
+          <h3>Save Claude limits</h3><p>Give implementation to Codex. Keep Claude’s budget for planning and decisions.</p>
+        </article>
+        <article class="card benefit" data-reveal>
+          <span class="tile green"><svg class="icon" aria-hidden="true"><use href="#bubbles"/></svg></span>
+          <h3>Get two second opinions</h3><p>Codex and Gemini review with fresh context and catch blind spots in the diff.</p>
+        </article>
+        <article class="card benefit" data-reveal>
+          <span class="tile gold"><svg class="icon" aria-hidden="true"><use href="#parallel"/></svg></span>
+          <h3>Finish reviews faster</h3><p>Both reviewers read the same patch in parallel, so neither waits for the other.</p>
+        </article>
+      </div>
+    </section>
+    <section class="section roles" aria-labelledby="roles-heading">
+      <h2 class="section-head" id="roles-heading">Meet the models</h2>
+      <div class="trio">
+        <article class="card role" data-reveal>
+          <svg class="role-icon" aria-hidden="true"><use href="#elephant"/></svg>
+          <span class="role-label">Orchestrator</span><h3>Claude</h3>
+          <p>The elephant holds the project context. It writes the brief, checks the diff, and decides how to handle each finding.</p>
+        </article>
+        <article class="card role" data-reveal>
+          <svg class="role-icon" aria-hidden="true"><use href="#goldfish"/></svg>
+          <span class="role-label">Worker + reviewer</span><h3>Codex</h3>
+          <p>ChatGPT writes code through the Codex CLI. For review, it returns as a goldfish with a fresh context and no chat history.</p>
+        </article>
+        <article class="card role" data-reveal>
+          <svg class="role-icon" aria-hidden="true"><use href="#goldfish"/></svg>
+          <span class="role-label">Researcher + reviewer</span><h3>Gemini</h3>
+          <p>Gemini researches through the Antigravity CLI (<code>agy</code>). As the second goldfish, it reviews the diff independently of the conversation.</p>
+        </article>
+      </div>
+    </section>
+    <section class="section" id="how-it-works" aria-labelledby="how-heading" data-reveal>
+      <h2 class="section-head" id="how-heading">How it works</h2>
+      <ol class="steps" role="list">
+        <li><span class="step-n" aria-hidden="true">1</span><h3>Write the brief</h3><p>Claude turns the task and its constraints into a brief for Codex.</p></li>
+        <li><span class="step-n" aria-hidden="true">2</span><h3>Build in a sandbox</h3><p>Codex implements the brief in a sandbox and returns a patch.</p></li>
+        <li><span class="step-n" aria-hidden="true">3</span><h3>Verify the diff</h3><p>Claude checks the changes against the brief and runs the tests.</p></li>
+        <li><span class="step-n" aria-hidden="true">4</span><h3>Review in parallel</h3><p>Codex and Gemini report each blocker, major issue, or nit with a <code>file:line</code> reference.</p></li>
+        <li><span class="step-n" aria-hidden="true">5</span><h3>Resolve and repeat</h3><p>Claude fixes or contests every finding. Stop after one clean round or three rounds total.</p></li>
+      </ol>
+    </section>
+    <section class="section split" id="review-loop" aria-labelledby="review-heading" data-reveal>
+      <div><h2 id="review-heading">Review loop</h2><p class="section-copy">Each goldfish gets the diff with no chat history. Findings point Claude to a specific line and explain what needs attention.</p></div>
+      <ul class="card review-list" role="list" aria-label="Example review findings">
+        <li><span class="severity blocker">Blocker</span><code>export.ts:12</code><p>The export includes rows from another account.</p></li>
+        <li><span class="severity major">Major</span><code>csv.ts:24</code><p>Escape quotes inside fields so the CSV parses correctly.</p></li>
+        <li><span class="severity nit">Nit</span><code>csv.ts:31</code><p>Rename <code>buf</code> to <code>csvRow</code> to clarify what it holds.</p></li>
+      </ul>
+    </section>
+    <section class="section split install" id="install" aria-labelledby="install-heading" data-reveal>
+      <div><h2 id="install-heading">Install delegate</h2><p class="section-copy">Clone the skill into your Claude Code skills directory, then install the <code>delegate</code> engine from that same folder, so one <code>git pull</code> updates both.</p></div>
+      <div>
+        <div class="command">
+          <pre><code id="install-command">git clone https://github.com/taherfarg/claude-delegate-skill ~/.claude/skills/delegate
+pip install --user -e ~/.claude/skills/delegate
+delegate doctor</code></pre>
+          <button type="button" class="copy" id="copy" hidden><svg class="icon" aria-hidden="true"><use href="#copy-icon"/></svg><span>Copy</span></button>
+        </div>
+        <p class="copy-note" id="copy-status" role="status"></p>
+        <p class="section-copy">macOS, Linux or Git Bash. On Windows PowerShell use <code style="overflow-wrap:anywhere">"$env:USERPROFILE\.claude\skills\delegate"</code> as the target folder.</p>
+        <div class="requirements"><h3>Requirements</h3><ul><li>Claude Code</li><li>Codex CLI logged in with ChatGPT</li><li>Antigravity CLI (<code>agy</code>) logged in with Google</li><li>git</li><li>Python 3.11+</li></ul></div>
+      </div>
+    </section>
+  </main>
+  <footer>
+    <div class="wrap foot">
+      <a class="brand" href="#top"><svg class="brand-mark" aria-hidden="true"><use href="#brand"/></svg>delegate</a>
+      <span>MIT license</span>
+      <span class="credit">Idea credit · <a href="https://github.com/google/elephant-goldfish-model" rel="noopener">google/elephant-goldfish-model</a></span>
+      <a class="foot-link" href="https://github.com/taherfarg/claude-delegate-skill" rel="noopener">GitHub<svg class="icon" aria-hidden="true"><use href="#arrow-out"/></svg></a>
+    </div>
+  </footer>
+  <script>
+    (() => {
+      const root = document.documentElement;
+      const theme = document.getElementById('theme');
+      const systemDark = matchMedia('(prefers-color-scheme: dark)');
+      function darkThemeActive() {
+        return root.dataset.theme ? root.dataset.theme === 'dark' : systemDark.matches;
+      }
+      function syncThemeButton() {
+        theme.setAttribute('aria-pressed', String(darkThemeActive()));
+      }
+      theme.addEventListener('click', () => {
+        root.dataset.theme = darkThemeActive() ? 'light' : 'dark';
+        syncThemeButton();
+        try { localStorage.setItem('delegate-theme', root.dataset.theme); } catch { /* Keep this tab's choice. */ }
+      });
+      systemDark.addEventListener('change', syncThemeButton);
+      syncThemeButton();
+      theme.hidden = false;
+
+      const motion = matchMedia('(prefers-reduced-motion: reduce)');
+      const replay = document.getElementById('replay');
+      const lines = Array.from(document.querySelectorAll('.log-row'), row => {
+        const container = row.querySelector('.typing-line');
+        const original = container.firstElementChild;
+        const typed = document.createElement('span');
+        container.append(typed);
+        return { row, original, typed, text: original.textContent };
+      });
+      let frame;
+      let observer;
+      function finishSession() {
+        cancelAnimationFrame(frame);
+        for (const { row, original, typed } of lines) {
+          row.style.visibility = '';
+          original.classList.remove('typing-guide');
+          typed.textContent = '';
+        }
+      }
+      function playSession() {
+        finishSession();
+        if (motion.matches) return;
+        for (const { row, original } of lines) {
+          row.style.visibility = 'hidden';
+          original.classList.add('typing-guide');
+        }
+        const start = performance.now();
+        function draw(now) {
+          let elapsed = now - start;
+          for (const { row, typed, text } of lines) {
+            if (elapsed < 0) break;
+            row.style.visibility = 'visible';
+            typed.textContent = text.slice(0, 1 + Math.floor(elapsed / 13));
+            elapsed -= text.length * 13 + 175;
+          }
+          if (elapsed < 0) frame = requestAnimationFrame(draw);
+          else finishSession();
+        }
+        draw(start);
+      }
+      function syncMotion() {
+        observer?.disconnect();
+        replay.hidden = motion.matches;
+        if (motion.matches) {
+          finishSession();
+          return;
+        }
+        playSession();
+        if ('IntersectionObserver' in window) {
+          observer = new IntersectionObserver(entries => {
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              entry.target.classList.add('revealed');
+              observer.unobserve(entry.target);
+            }
+          }, { threshold: .08 });
+          document.querySelectorAll('[data-reveal]:not(.revealed)').forEach(el => observer.observe(el));
+        }
+      }
+      replay.addEventListener('click', playSession);
+      motion.addEventListener('change', syncMotion);
+      syncMotion();
+
+      const command = document.getElementById('install-command');
+      const copy = document.getElementById('copy');
+      const label = copy.querySelector('span');
+      const status = document.getElementById('copy-status');
+      let resetCopy;
+      copy.addEventListener('click', async () => {
+        let copied = false;
+        try {
+          if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(command.textContent);
+            copied = true;
+          }
+        } catch { /* Permission denied or clipboard unavailable. */ }
+        if (!copied) {
+          const range = document.createRange();
+          range.selectNodeContents(command);
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+          try { copied = document.execCommand('copy'); } catch { /* Leave the command selected. */ }
+        }
+        status.classList.toggle('sr', copied);
+        status.textContent = copied ? 'Install command copied.' : 'Command selected. Use your device’s Copy action.';
+        label.textContent = copied ? 'Copied!' : 'Copy';
+        clearTimeout(resetCopy); // a slower earlier click may have set one while we awaited
+        if (copied) resetCopy = setTimeout(() => {
+          label.textContent = 'Copy';
+          status.textContent = '';
+        }, 2000);
+      });
+      copy.hidden = false;
+    })();
+  </script>
+</body>
+</html>
