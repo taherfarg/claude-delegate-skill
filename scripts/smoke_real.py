@@ -47,7 +47,7 @@ def main() -> int:
     if delegate_exe:
         base_cmd = [delegate_exe]
     else:
-        base_cmd = [sys.executable, "-m", "delegate.cli"]
+        base_cmd = [sys.executable, "-m", "delegate"]
 
     # Ensure repo root is on PYTHONPATH for child processes
     env = os.environ.copy()
