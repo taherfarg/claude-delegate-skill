@@ -56,7 +56,7 @@ def _cmd_work(repo: Path, cfg: Config, args: argparse.Namespace) -> int:
         task = _load_task(repo, task_id)
         if not brief_path.is_file():
             raise DelegateError(f"brief file not found: {args.brief}")
-        result = run_worker(repo, task, cfg, brief_path)
+        result = run_worker(repo, task, cfg, brief_path, worker=args.worker)
         tree = state.task_tree(repo, task)
         result_file = state.task_dir(repo, task.id) / "result.md"
         if result_file.is_file():
@@ -284,6 +284,7 @@ def main(argv: list[str] | None = None) -> int:
     work_parser = subparsers.add_parser("work")
     work_parser.add_argument("id")
     work_parser.add_argument("--brief", required=True)
+    work_parser.add_argument("--worker", choices=("codex", "gemini"), default="codex")
 
     status_parser = subparsers.add_parser("status")
     status_parser.add_argument("id", nargs="?", default=None)

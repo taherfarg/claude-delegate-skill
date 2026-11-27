@@ -67,8 +67,7 @@ delegate work <id> --brief <path-to-brief>
 Codex implements the brief in its sandbox. Output is printed capped at 15 lines alongside `git diff --stat`.
 
 > [!NOTE]
-> **Coding Fallback:** If Codex hits its usage limit, `agy` can do the coding with `--mode accept-edits` (still no shell). Its brief/prompt must say up front:
-> `Do NOT run shell/terminal commands (they are denied); read files only with your file-reading tools. Shell commands AND reads outside the repo abort the session.`
+> **Coding Fallback:** If Codex hits its usage limit, run `delegate work <id> --brief <path> --worker gemini`. The engine runs `agy --mode accept-edits` (still no shell) with the no-shell warning and records Gemini as the author, so Gemini's review no longer counts as independent: `done` then needs a clean **Codex** review (or the user's `delegate approve`). Never run a worker outside `delegate work`, because the engine can't tell who wrote unrecorded edits and treats them as Claude's.
 
 If files outside the initial scope need changes, expand scope with:
 ```bash

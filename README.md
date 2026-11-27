@@ -10,7 +10,7 @@
   <a href="https://github.com/taherfarg/claude-delegate-skill/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/taherfarg/claude-delegate-skill?color=a53b20"></a>
   <img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11%2B-3776ab">
   <img alt="Runtime dependencies: 0" src="https://img.shields.io/badge/runtime%20deps-0-41624c">
-  <img alt="Tests: 129" src="https://img.shields.io/badge/tests-129-41624c">
+  <img alt="Tests: 139" src="https://img.shields.io/badge/tests-139-41624c">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-595c52"></a>
 </p>
 
@@ -62,7 +62,7 @@ The engine decides what `done` requires from the files a task touched:
 | Risk | When | `done` requires, on the current `diff_hash` |
 |---|---|---|
 | 🟢 **Low** | only docs, text, CSS or images changed | every project gate passes |
-| 🟡 **Medium** | everything else | gates pass + a clean review from the model that **didn't** write the code + every 🔴/🟡 contested |
+| 🟡 **Medium** | everything else | gates pass + a clean review from a model that **didn't** write the code (both, if both wrote parts) + every 🔴/🟡 contested |
 | 🔴 **High** | auth, migrations, SQL, billing, CI, dependency manifests, test/lint config, `delegate.toml` | gates pass + **both** reviewers clean + **your** `delegate approve` in a real terminal |
 
 A check that is missing, stale, failed or timed out **never** counts as passed. Claude can't approve on your behalf: `approve` requires an interactive console and refuses piped input and the Windows `NUL` device.
@@ -104,7 +104,7 @@ If `delegate` isn't on PATH, add Python's user `Scripts` folder to it, or use `p
 | `delegate init` | writes `delegate.toml` with gates detected from your stack |
 | `delegate task new <id> --title T --files G… [--worktree]` | records the baseline, your uncommitted edits, and the task's scope |
 | `delegate scope <id> add G…` | widens the scope |
-| `delegate work <id> --brief FILE` | runs the Codex worker (sandboxed, timed) |
+| `delegate work <id> --brief FILE [--worker gemini]` | runs the Codex worker (sandboxed, timed), or Gemini when Codex is out of quota |
 | `delegate verify <id>` | runs your gates one by one, without stopping at the first failure |
 | `delegate review <id> --goal G` | scans for secrets, freezes the diff, runs Codex + Gemini in parallel |
 | `delegate triage <id> <finding> fix\|contest "why"` | records a decision; `--same-as` links a repeated finding |

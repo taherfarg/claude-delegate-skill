@@ -46,4 +46,4 @@ def test_invalid_toml_is_clean_error(tmp_path):
 
 def test_version(capsys):
     main(["--version"])
-    assert capsys.readouterr().out.strip() == "2.0.0"
+    assert capsys.readouterr().out.strip() == "2.1.0"

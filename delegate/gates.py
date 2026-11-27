@@ -74,6 +74,21 @@ def run_gates(repo: Path, task: Task, cfg: Config) -> dict[str, dict]:
     return results
 
 
+def required_reviewers(risk: str, contributors: list[str]) -> list[str] | None:
+    """Reviewers that must have run, or None when either one is enough.
+
+    A model never counts as an independent reviewer of code it wrote.
+    """
+    if risk == "high":
+        return ["codex", "gemini"]
+    others = [r for r in ("codex", "gemini") if r not in contributors]
+    if len(others) == 2:
+        return None  # Claude (or a human) wrote it
+    if not others:
+        return ["codex", "gemini"]  # both models wrote parts: each reviews the other's
+    return others
+
+
 def evaluate(repo: Path, task: Task, cfg: Config) -> Evaluation:
     tree = state.task_tree(repo, task)
     changed = state.changed_files(task, tree)
@@ -122,12 +137,7 @@ def evaluate(repo: Path, task: Task, cfg: Config) -> Evaluation:
         elif latest_round.get("diff_hash") != current_hash:
             blockers.append("review stale")
         elif not has_valid_approval:
-            if risk == "high":
-                required = ["codex", "gemini"]
-            elif "codex" in task.contributors:
-                required = ["gemini"]
-            else:
-                required = None  # either one
+            required = required_reviewers(risk, task.contributors)
 
             if required is not None:
                 for r in required:
@@ -273,13 +283,11 @@ def approve(
     if not task.reviews or latest_round.get("diff_hash") != current_hash:
         has_b6_b7_issue = True
     else:
-        if risk == "high":
-            for r in ("codex", "gemini"):
+        required = required_reviewers(risk, task.contributors)
+        if required is not None:
+            for r in required:
                 if latest_round.get("reviewers", {}).get(r, {}).get("status") != "ran":
                     has_b6_b7_issue = True
-        elif "codex" in task.contributors:
-            if latest_round.get("reviewers", {}).get("gemini", {}).get("status") != "ran":
-                has_b6_b7_issue = True
         else:
             c_stat = latest_round.get("reviewers", {}).get("codex", {}).get("status")
             g_stat = latest_round.get("reviewers", {}).get("gemini", {}).get("status")

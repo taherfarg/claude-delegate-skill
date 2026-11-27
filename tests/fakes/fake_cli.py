@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -25,6 +26,8 @@ def _next_mode(name: str, counter: Path) -> str:
 def main(name: str, args: list[str]) -> int:
     counter = Path(os.environ["FAKE_BIN"]) / f"{name}.count"
     mode = _next_mode(name, counter)
+    with (counter.parent / f"{name}.args").open("a", encoding="utf-8") as f:
+        f.write(json.dumps(args) + "\n")
     if name == "codex" and args == ["login", "status"]:
         print("Logged in using ChatGPT")
         return 0

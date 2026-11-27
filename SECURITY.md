@@ -10,6 +10,7 @@
 - **Your own edits stay local:** uncommitted edits you had before a task are never sent to reviewers.
 - **Approval is human-only:** `delegate approve` requires a real interactive console. It refuses piped input and the Windows `NUL` device.
 - **Workers can't fake evidence:** a worker can't forge other tasks' state in `.delegate/` (it is snapshotted and restored), and editing `delegate.toml` or test/lint config makes a task high-risk.
+- **No self-review:** a model never counts as the independent reviewer of code it wrote through `delegate work`.
 - **Metrics hold counts only:** never code, finding text, or briefs.
 
 ## Reporting a vulnerability

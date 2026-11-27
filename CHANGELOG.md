@@ -2,6 +2,14 @@
 
 All notable changes to this project. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.1.0] - 2026-11-27
+
+### Added
+- `delegate work <id> --worker gemini`: the engine runs the Gemini coding fallback itself (`agy --mode accept-edits`, no shell, brief handed over from outside the repo) and records Gemini as the author.
+
+### Fixed
+- **A model could be the only reviewer of its own code.** When Gemini coded through the fallback outside the engine, nothing recorded it as the author, so its own clean review satisfied the medium-risk "independent review" rule. Now a model never counts as an independent reviewer of code it wrote: Gemini-written code needs Codex, and code both wrote needs both. Found by a side-by-side splitbill experiment.
+
 ## [2.0.0] - 2026-11-27
 
 ### Added
@@ -30,5 +38,6 @@ All notable changes to this project. The format follows [Keep a Changelog](https
 ### Added
 - The `delegate` Claude Code skill: prompt-only orchestration of Codex (worker) and Gemini via `agy` (reviewer) on existing subscriptions, plus the goldfish review loop borrowed from [google/elephant-goldfish-model](https://github.com/google/elephant-goldfish-model).
 
+[2.1.0]: https://github.com/taherfarg/claude-delegate-skill/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/taherfarg/claude-delegate-skill/compare/v1.0.0...v2.0.0
 [1.0.0]: https://github.com/taherfarg/claude-delegate-skill/releases/tag/v1.0.0
