@@ -3,9 +3,10 @@ import sys
 from pathlib import Path
 from typing import NoReturn
 
-from . import __version__, gates, git, runner, state
+from . import __version__, gates, git, review, runner, state
 from .config import Config, ConfigError, load_config
 from .git import DelegateError
+from .review import ReviewRefusal
 from .work import diff_stat, run_worker
 
 
@@ -156,6 +157,48 @@ def _cmd_verify(repo: Path, cfg: Config, args: argparse.Namespace) -> int:
         return 0 if all_passed else 2
 
 
+def _cmd_review(repo: Path, cfg: Config, args: argparse.Namespace) -> int:
+    task_id = args.id
+    criteria = ""
+    if args.criteria_file:
+        criteria_path = Path(args.criteria_file)
+        if not criteria_path.is_absolute():
+            criteria_path = (Path.cwd() / criteria_path).resolve()
+        if not criteria_path.is_file():
+            raise DelegateError(f"criteria file not found: {args.criteria_file}")
+        criteria = criteria_path.read_text(encoding="utf-8")
+
+    with state.task_lock(repo, task_id):
+        task = _load_task(repo, task_id)
+        round_record = review.run_review(repo, task, cfg, goal=args.goal, criteria=criteria)
+        all_findings = []
+        for reviewer_data in round_record["reviewers"].values():
+            all_findings.extend(reviewer_data["findings"])
+        all_findings.sort(key=lambda f: (f["file"], f["line"]))
+        for f in all_findings:
+            icon = review._ICONS.get(f["severity"], "🔴")
+            print(f"{f['id']} {icon} {f['file']}:{f['line']} — {f['problem']} — {f['why']}")
+        for name in ("codex", "gemini"):
+            status = round_record["reviewers"][name]["status"]
+            print(f"{name}: {status}")
+    return 0
+
+
+def _cmd_triage(repo: Path, cfg: Config, args: argparse.Namespace) -> int:
+    task_id = args.id
+    with state.task_lock(repo, task_id):
+        task = _load_task(repo, task_id)
+        review.triage_finding(
+            repo=repo,
+            task=task,
+            finding_id=args.finding_id,
+            decision=args.decision,
+            reason=args.reason,
+            same_as=args.same_as,
+        )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _Parser(prog="delegate")
     parser.add_argument("--version", action="version", version=__version__)
@@ -185,6 +228,18 @@ def main(argv: list[str] | None = None) -> int:
     verify_parser = subparsers.add_parser("verify")
     verify_parser.add_argument("id")
 
+    review_parser = subparsers.add_parser("review")
+    review_parser.add_argument("id")
+    review_parser.add_argument("--goal", required=True)
+    review_parser.add_argument("--criteria-file", default=None)
+
+    triage_parser = subparsers.add_parser("triage")
+    triage_parser.add_argument("id")
+    triage_parser.add_argument("finding_id")
+    triage_parser.add_argument("decision", choices=["fix", "contest"])
+    triage_parser.add_argument("reason", nargs="?", default="")
+    triage_parser.add_argument("--same-as", default=None)
+
     try:
         args = parser.parse_args(argv)
         repo = git.main_root(Path.cwd())
@@ -201,6 +256,13 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_status(repo, cfg, args)
         elif args.command == "verify":
             return _cmd_verify(repo, cfg, args)
+        elif args.command == "review":
+            return _cmd_review(repo, cfg, args)
+        elif args.command == "triage":
+            return _cmd_triage(repo, cfg, args)
+    except ReviewRefusal as exc:
+        print(exc.message)
+        return exc.exit_code
     except (DelegateError, ConfigError) as exc:
         print(f"delegate: {exc}", file=sys.stderr)
         return 1
